@@ -156,8 +156,8 @@ print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_acc:.2f}%")
 # -------------------------------
 # Save Full Model (arquitetura + pesos)
 # -------------------------------
-torch.save(model, "cnn_cats_dogs_full.pth")
-print("Modelo completo salvo em 'cnn_cats_dogs_full.pth'")
+torch.save(model.state_dict(), "cnn_cats_dogs.pth")
+print("Modelo completo salvo em 'cnn_cats_dogs.pth'")
 
 
 # -------------------------------
