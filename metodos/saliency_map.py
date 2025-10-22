@@ -94,18 +94,20 @@ def saliency_map(model, image_tensor, target_class=None):
     return saliency, target_class
 
 # ===============================
-# 5️⃣ Métricas
+# 5️⃣ Métricas com evolução de imagens e prints
 # ===============================
-def pixel_flipping(model, image_tensor, saliency, target_class, steps=10):
+def pixel_flipping(model, image_tensor, saliency, target_class, steps=100, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
     flat_saliency = saliency.flatten()
     sorted_idx = np.argsort(flat_saliency)[::-1]
 
     confidences = []
+    images_to_show = []
     total_pixels = len(sorted_idx)
     step_size = max(total_pixels // steps, 1)
 
-    for i in range(0, total_pixels, step_size):
+    print("\n=== Pixel Flipping ===")
+    for step, i in enumerate(range(0, total_pixels, step_size), start=1):
         perturbed = image_np.copy().reshape(-1, 3)
         perturbed[sorted_idx[:i]] = 0
         perturbed = perturbed.reshape(150, 150, 3)
@@ -115,9 +117,14 @@ def pixel_flipping(model, image_tensor, saliency, target_class, steps=10):
             conf = torch.softmax(model(perturbed_tensor), dim=1)[0, target_class].item()
         confidences.append(conf)
 
-    return confidences
+        if step % visualize_every == 0:
+            print(f"Passo {step} - Confiança: {conf:.4f}")
+            images_to_show.append((perturbed.copy(), conf, step))
 
-def region_perturbation(model, image_tensor, saliency, target_class, grid_size=10):
+    return confidences, images_to_show
+
+
+def region_perturbation(model, image_tensor, saliency, target_class, grid_size=10, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
     h, w, _ = image_np.shape
     region_h, region_w = h // grid_size, w // grid_size
@@ -131,32 +138,29 @@ def region_perturbation(model, image_tensor, saliency, target_class, grid_size=1
 
     sorted_regions = np.argsort(region_importance.flatten())[::-1]
     confidences = []
+    images_to_show = []
     perturbed = image_np.copy()
 
-    for k in range(len(sorted_regions)):
-        idx = sorted_regions[k]
+    print("\n=== Region Perturbation ===")
+    for step, idx in enumerate(sorted_regions, start=1):
         i, j = divmod(idx, grid_size)
         perturbed[i*region_h:(i+1)*region_h, j*region_w:(j+1)*region_w, :] = 0
         perturbed_tensor = torch.tensor(perturbed).permute(2, 0, 1).unsqueeze(0).float().to(device)
+
         with torch.no_grad():
             conf = torch.softmax(model(perturbed_tensor), dim=1)[0, target_class].item()
         confidences.append(conf)
 
-    return confidences
+        if step % visualize_every == 0:
+            print(f"Passo {step} - Confiança: {conf:.4f}")
+            images_to_show.append((perturbed.copy(), conf, step))
+
+    return confidences, images_to_show
 
 # ===============================
-# 6️⃣ Teste com imagem
+# 6️⃣ Teste com imagem e métricas
 # ===============================
 image_path = "Imagens_teste/cats/54.jpg"
-image_tensor, image = preprocess_image(image_path)
-saliency, target_class = saliency_map(model, image_tensor)
-
-pixel_conf = pixel_flipping(model, image_tensor, saliency, target_class)
-region_conf = region_perturbation(model, image_tensor, saliency, target_class)
-
-# ===============================
-# 6️⃣ Teste com imagem (com prints)
-# ===============================
 image_tensor, image = preprocess_image(image_path)
 saliency, target_class = saliency_map(model, image_tensor)
 
@@ -165,25 +169,15 @@ with torch.no_grad():
     probs = torch.softmax(model(image_tensor), dim=1).cpu().numpy()[0]
 initial_conf = probs[target_class]
 class_name = "Cão" if target_class == 1 else "Gato"
-print(f"Imagem Prevista: {class_name}")
+print(f"\nImagem Prevista: {class_name}")
 print(f"Confiança Inicial: {initial_conf:.4f}")
 
-# Pixel Flipping
-pixel_conf = pixel_flipping(model, image_tensor, saliency, target_class)
-print("\n--- Pixel Flipping ---")
-print(f"Confiança inicial: {pixel_conf[0]:.4f}")
-print(f"Confiança final após perturbação total: {pixel_conf[-1]:.4f}")
-print(f"Queda de confiança: {pixel_conf[0]-pixel_conf[-1]:.4f}")
-
-# Region Perturbation
-region_conf = region_perturbation(model, image_tensor, saliency, target_class)
-print("\n--- Region Perturbation ---")
-print(f"Confiança inicial: {region_conf[0]:.4f}")
-print(f"Confiança final após perturbação total: {region_conf[-1]:.4f}")
-print(f"Queda de confiança: {region_conf[0]-region_conf[-1]:.4f}")
+# Métricas com imagens a cada 10 passos
+pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, saliency, target_class, steps=100, visualize_every=10)
+region_conf, region_imgs = region_perturbation(model, image_tensor, saliency, target_class, grid_size=10, visualize_every=10)
 
 # ===============================
-# 7️⃣ Visualização
+# 7️⃣ Visualização final (mantida)
 # ===============================
 plt.figure(figsize=(15,4))
 plt.subplot(1,3,1)
@@ -207,3 +201,19 @@ plt.title("Avaliação Métricas")
 plt.tight_layout()
 plt.show()
 
+# ===============================
+# 8️⃣ Mostrar evolução das imagens a cada 10 passos
+# ===============================
+def show_evolution(images_list, title):
+    plt.figure(figsize=(20, 8))
+    for idx, (img, conf, step) in enumerate(images_list):
+        plt.subplot(2, (len(images_list)+1)//2, idx+1)
+        plt.imshow(img)
+        plt.axis('off')
+        plt.title(f"Passo {step}\nConf: {conf:.2f}")
+    plt.suptitle(title, fontsize=16)
+    plt.tight_layout()
+    plt.show()
+
+show_evolution(pixel_imgs, "Evolução da Imagem - Pixel Flipping")
+show_evolution(region_imgs, "Evolução da Imagem - Region Perturbation")

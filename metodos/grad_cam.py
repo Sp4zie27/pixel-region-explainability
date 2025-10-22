@@ -7,12 +7,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ===============================
-# 1️⃣ Configuração do device
+# Configuração do device
 # ===============================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ===============================
-# 2️⃣ Modelo CNN
+# 1️⃣ Classe CNN
 # ===============================
 class CNN(nn.Module):
     def __init__(self):
@@ -58,7 +58,7 @@ class CNN(nn.Module):
         return x
 
 # ===============================
-# 3️⃣ Carregar modelo treinado
+# 2️⃣ Inicializar modelo
 # ===============================
 model_path = "../modelo/cnn_cats_dogs.pth"
 model = CNN().to(device)
@@ -66,7 +66,7 @@ model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
 # ===============================
-# 4️⃣ Pré-processamento da imagem
+# 3️⃣ Pré-processamento da imagem
 # ===============================
 def preprocess_image(image_path):
     transform = transforms.Compose([
@@ -78,150 +78,151 @@ def preprocess_image(image_path):
     return tensor, image
 
 # ===============================
-# 5️⃣ Integrated Gradients
+# 4️⃣ Grad-CAM
 # ===============================
-def integrated_gradients(model, image_tensor, target_class=None, baseline=None, steps=50):
-    model.zero_grad()
+class GradCAM:
+    def __init__(self, model, target_layer):
+        self.model = model
+        self.target_layer = target_layer
+        self.gradients = None
+        self.activations = None
+        self.hook()
 
-    if baseline is None:
-        baseline = torch.zeros_like(image_tensor).to(device)
+    def hook(self):
+        def forward_hook(module, input, output):
+            self.activations = output.detach()
+        def backward_hook(module, grad_in, grad_out):
+            self.gradients = grad_out[0].detach()
+        self.target_layer.register_forward_hook(forward_hook)
+        self.target_layer.register_full_backward_hook(backward_hook)
 
-    if target_class is None:
-        target_class = model(image_tensor).argmax(dim=1).item()
-
-    scaled_inputs = [baseline + (float(i) / steps) * (image_tensor - baseline) for i in range(steps + 1)]
-    grads = []
-
-    for scaled in scaled_inputs:
-        scaled.requires_grad_()
-        output = model(scaled)
-        loss = output[0, target_class]
+    def __call__(self, x):
+        self.model.zero_grad()
+        output = self.model(x)
+        class_idx = output.argmax(dim=1).item()
+        loss = output[0, class_idx]
         loss.backward()
-        grads.append(scaled.grad.detach().clone())
-        model.zero_grad()
 
-    grads = torch.stack(grads, dim=0)
-    avg_grads = grads.mean(dim=0)
-    ig = (image_tensor - baseline) * avg_grads
-    ig_map = ig.squeeze().detach().cpu().numpy().transpose(1, 2, 0)
-    ig_map = np.maximum(ig_map, 0)
-    return ig_map, target_class
+        weights = self.gradients.mean(dim=(2,3), keepdim=True)
+        grad_cam_map = F.relu((weights * self.activations).sum(dim=1, keepdim=True))
+        grad_cam_map = F.interpolate(grad_cam_map, size=x.shape[2:], mode='bilinear', align_corners=False)
+        grad_cam_map = grad_cam_map.squeeze().cpu().numpy()
+        grad_cam_map = (grad_cam_map - grad_cam_map.min()) / (grad_cam_map.max() - grad_cam_map.min() + 1e-8)
+        return grad_cam_map, class_idx
 
 # ===============================
-# 6️⃣ Métricas com prints e imagens
+# 5️⃣ Pixel Flipping com prints
 # ===============================
-def pixel_flipping(model, image_tensor, importance_map, target_class, steps=100, visualize_every=10):
-    image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
-    flat_map = importance_map.mean(axis=-1).flatten()
+def pixel_flipping(model, image_tensor, grad_map, target_class, steps=100, visualize_every=10):
+    image_np = image_tensor.squeeze().permute(1,2,0).cpu().numpy()
+    flat_map = grad_map.flatten()
     sorted_idx = np.argsort(flat_map)[::-1]
 
     confidences = []
-    images_to_show = []
-    total_pixels = len(sorted_idx)
+    perturbed_images = []
+    total_pixels = len(flat_map)
     step_size = max(total_pixels // steps, 1)
 
     print("\n=== Pixel Flipping ===")
-    for step, i in enumerate(range(0, total_pixels, step_size), start=1):
+    for step, i in enumerate(range(0, total_pixels, step_size)):
         perturbed = image_np.copy().reshape(-1, 3)
-        perturbed[sorted_idx[:i]] = 0
-        perturbed = perturbed.reshape(150, 150, 3)
-        perturbed_tensor = torch.tensor(perturbed).permute(2, 0, 1).unsqueeze(0).float().to(device)
+        idxs = sorted_idx[:min(i, total_pixels)]
+        perturbed[idxs] = 0
+        perturbed = perturbed.reshape(150,150,3)
+
+        perturbed_tensor = torch.tensor(perturbed).permute(2,0,1).unsqueeze(0).float().to(device)
         with torch.no_grad():
-            conf = torch.softmax(model(perturbed_tensor), dim=1)[0, target_class].item()
+            conf = torch.softmax(model(perturbed_tensor), dim=1)[0,target_class].item()
         confidences.append(conf)
 
         if step % visualize_every == 0:
-            print(f"Passo {step} - Confiança: {conf:.4f}")
-            images_to_show.append((perturbed.copy(), conf, step))
+            print(f"Passo {step:3d} → Confiança: {conf:.4f}")
+            perturbed_images.append((perturbed.copy(), conf, step))
 
-    return confidences, images_to_show
+    return confidences, perturbed_images
 
-
-def region_perturbation(model, image_tensor, importance_map, target_class, grid_size=10, visualize_every=10):
-    image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
+# ===============================
+# 6️⃣ Region Perturbation com prints
+# ===============================
+def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=10, visualize_every=10):
+    image_np = image_tensor.squeeze().permute(1,2,0).cpu().numpy()
     h, w, _ = image_np.shape
     region_h, region_w = h // grid_size, w // grid_size
-    resized_map = importance_map.mean(axis=-1).reshape(h, w)
 
+    grad_resized = grad_map
     region_importance = np.zeros((grid_size, grid_size))
     for i in range(grid_size):
         for j in range(grid_size):
-            region = resized_map[i*region_h:(i+1)*region_h, j*region_w:(j+1)*region_w]
-            region_importance[i, j] = region.mean()
+            region = grad_resized[i*region_h:(i+1)*region_h, j*region_w:(j+1)*region_w]
+            region_importance[i,j] = region.mean()
 
     sorted_regions = np.argsort(region_importance.flatten())[::-1]
     confidences = []
-    images_to_show = []
+    perturbed_images = []
     perturbed = image_np.copy()
 
     print("\n=== Region Perturbation ===")
-    for step, idx in enumerate(sorted_regions, start=1):
-        i, j = divmod(idx, grid_size)
+    for step, idx in enumerate(sorted_regions):
+        i,j = divmod(idx, grid_size)
         perturbed[i*region_h:(i+1)*region_h, j*region_w:(j+1)*region_w, :] = 0
-        perturbed_tensor = torch.tensor(perturbed).permute(2, 0, 1).unsqueeze(0).float().to(device)
+        perturbed_tensor = torch.tensor(perturbed).permute(2,0,1).unsqueeze(0).float().to(device)
         with torch.no_grad():
-            conf = torch.softmax(model(perturbed_tensor), dim=1)[0, target_class].item()
+            conf = torch.softmax(model(perturbed_tensor), dim=1)[0,target_class].item()
         confidences.append(conf)
 
         if step % visualize_every == 0:
-            print(f"Passo {step} - Confiança: {conf:.4f}")
-            images_to_show.append((perturbed.copy(), conf, step))
+            print(f"Região {step:3d} → Confiança: {conf:.4f}")
+            perturbed_images.append((perturbed.copy(), conf, step))
 
-    return confidences, images_to_show
+    return confidences, perturbed_images
 
 # ===============================
-# 7️⃣ Teste e Visualização
+# 7️⃣ Teste com imagem
 # ===============================
-image_path = "Imagens_teste/cats/54.jpg"
+image_path = "Imagens_teste/cats/1278.jpg"
 image_tensor, image = preprocess_image(image_path)
-ig_map, target_class = integrated_gradients(model, image_tensor)
 
-# Confiança inicial
+grad_cam = GradCAM(model, model.conv6)
+grad_map, target_class = grad_cam(image_tensor)
+
 with torch.no_grad():
     probs = torch.softmax(model(image_tensor), dim=1).cpu().numpy()[0]
 initial_conf = probs[target_class]
-class_name = "Cão" if target_class == 1 else "Gato"
-
+class_name = "Cão" if target_class==1 else "Gato"
 print(f"\nImagem Prevista: {class_name}")
 print(f"Confiança Inicial: {initial_conf:.4f}")
 
-# Métricas
-pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, ig_map, target_class)
-region_conf, region_imgs = region_perturbation(model, image_tensor, ig_map, target_class)
-
-# Normalização
-image_resized = np.array(image.resize((150, 150))) / 255.0
-ig_map_norm = (ig_map - ig_map.min()) / (ig_map.max() - ig_map.min())
-gradients_at_image = np.clip(image_resized * ig_map_norm * 3, 0, 1)
+# Executar métricas
+pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, grad_map, target_class, steps=100, visualize_every=10)
+region_conf, region_imgs = region_perturbation(model, image_tensor, grad_map, target_class, grid_size=10, visualize_every=10)
 
 # ===============================
-# 8️⃣ Plot final (mantido)
+# 8️⃣ Visualização principal
 # ===============================
-plt.figure(figsize=(18, 4))
-
-plt.subplot(1, 4, 1)
+plt.figure(figsize=(15,5))
+plt.subplot(1,3,1)
 plt.imshow(image)
 plt.axis('off')
 plt.title(f"Imagem Original ({class_name})")
 
-plt.subplot(1, 4, 2)
-plt.imshow(ig_map_norm, cmap='hot')
-plt.axis('off')
-plt.title("Integrated Gradients")
+from PIL import Image as PILImage
+grad_map_img = PILImage.fromarray((grad_map * 255).astype(np.uint8))
+grad_map_img = grad_map_img.resize(image.size, resample=PILImage.BILINEAR)
+grad_map_resized = np.array(grad_map_img) / 255.0
 
-plt.subplot(1, 4, 3)
-plt.imshow(gradients_at_image)
+plt.subplot(1,3,2)
+plt.imshow(image)
+plt.imshow(grad_map_resized, cmap='jet', alpha=0.5)
 plt.axis('off')
-plt.title("Gradients at Image")
+plt.title("Grad-CAM")
 
-plt.subplot(1, 4, 4)
+plt.subplot(1,3,3)
 plt.plot(pixel_conf, label="Pixel Flipping")
 plt.plot(region_conf, label="Region Perturbation")
-plt.xlabel("Passos")
+plt.xlabel("Passos / Regiões")
 plt.ylabel("Confiança")
 plt.legend()
-plt.title("Avaliação de Métricas")
-
+plt.title("Evolução da Confiança")
 plt.tight_layout()
 plt.show()
 
@@ -229,9 +230,10 @@ plt.show()
 # 9️⃣ Mostrar evolução das imagens
 # ===============================
 def show_evolution(images_list, title):
-    plt.figure(figsize=(20, 8))
+    plt.figure(figsize=(15,8))
+    num_imgs = len(images_list)
     for idx, (img, conf, step) in enumerate(images_list):
-        plt.subplot(2, (len(images_list) + 1) // 2, idx + 1)
+        plt.subplot(2, (num_imgs+1)//2, idx+1)
         plt.imshow(img)
         plt.axis('off')
         plt.title(f"Passo {step}\nConf: {conf:.2f}")

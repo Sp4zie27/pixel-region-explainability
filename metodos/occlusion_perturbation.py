@@ -1,0 +1,226 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision.transforms as transforms
+from PIL import Image
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ===============================
+# Configuração do device
+# ===============================
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# ===============================
+# 1️⃣ Classe CNN
+# ===============================
+class CNN(nn.Module):
+    def __init__(self):
+        super(CNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, 3, 1, 1)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(32, 64, 3, 1, 1)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.pool1 = nn.MaxPool2d(2, 2)
+
+        self.conv3 = nn.Conv2d(64, 128, 3, 1, 1)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.conv4 = nn.Conv2d(128, 128, 3, 1, 1)
+        self.bn4 = nn.BatchNorm2d(128)
+        self.pool2 = nn.MaxPool2d(2, 2)
+
+        self.conv5 = nn.Conv2d(128, 256, 3, 1, 1)
+        self.bn5 = nn.BatchNorm2d(256)
+        self.conv6 = nn.Conv2d(256, 256, 3, 1, 1)
+        self.bn6 = nn.BatchNorm2d(256)
+        self.pool3 = nn.MaxPool2d(2, 2)
+
+        self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc1 = nn.Linear(256, 512)
+        self.dropout = nn.Dropout(0.5)
+        self.fc2 = nn.Linear(512, 2)
+
+    def forward(self, x):
+        x = F.relu6(self.bn1(self.conv1(x)))
+        x = F.relu6(self.bn2(self.conv2(x)))
+        x = self.pool1(x)
+        x = F.relu6(self.bn3(self.conv3(x)))
+        x = F.relu6(self.bn4(self.conv4(x)))
+        x = self.pool2(x)
+        x = F.relu6(self.bn5(self.conv5(x)))
+        x = F.relu6(self.bn6(self.conv6(x)))
+        x = self.pool3(x)
+        x = self.global_avg_pool(x)
+        x = x.view(x.size(0), -1)
+        x = F.relu6(self.fc1(x))
+        x = self.dropout(x)
+        x = self.fc2(x)
+        return x
+
+# ===============================
+# 2️⃣ Inicializar modelo
+# ===============================
+model_path = "../modelo/cnn_cats_dogs.pth"
+model = CNN().to(device)
+model.load_state_dict(torch.load(model_path, map_location=device))
+model.eval()
+
+# ===============================
+# 3️⃣ Pré-processamento da imagem
+# ===============================
+def preprocess_image(image_path):
+    transform = transforms.Compose([
+        transforms.Resize((150, 150)),
+        transforms.ToTensor()
+    ])
+    image = Image.open(image_path).convert("RGB")
+    tensor = transform(image).unsqueeze(0).to(device)
+    return tensor, image
+
+# ===============================
+# 4️⃣ Occlusion Perturbation Map
+# ===============================
+def occlusion_map(model, image_tensor, patch_size=15, stride=8):
+    _, _, H, W = image_tensor.shape
+    model.eval()
+    with torch.no_grad():
+        base_output = torch.softmax(model(image_tensor), dim=1)
+        base_conf, target_class = base_output.max(1)
+        base_conf = base_conf.item()
+        target_class = target_class.item()
+
+    heatmap = np.zeros((H, W))
+    for i in range(0, H - patch_size + 1, stride):
+        for j in range(0, W - patch_size + 1, stride):
+            occluded = image_tensor.clone()
+            occluded[:, :, i:i+patch_size, j:j+patch_size] = 0
+            with torch.no_grad():
+                conf = torch.softmax(model(occluded), dim=1)[0, target_class].item()
+            drop = base_conf - conf
+            heatmap[i:i+patch_size, j:j+patch_size] += drop
+
+    heatmap /= heatmap.max() + 1e-8
+    return heatmap, target_class
+
+# ===============================
+# 5️⃣ Métricas (com prints e imagens)
+# ===============================
+def pixel_flipping(model, image_tensor, sal_map, target_class, steps=100, visualize_every=10):
+    image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
+    flat_sal = sal_map.flatten()
+    sorted_idx = np.argsort(flat_sal)[::-1]
+
+    confidences = []
+    images_to_show = []
+    total_pixels = len(sorted_idx)
+    step_size = max(total_pixels // steps, 1)
+
+    print("\n=== Pixel Flipping ===")
+    for step, i in enumerate(range(0, total_pixels, step_size), start=1):
+        perturbed = image_np.copy().reshape(-1, 3)
+        perturbed[sorted_idx[:i]] = 0
+        perturbed = perturbed.reshape(150, 150, 3)
+        perturbed_tensor = torch.tensor(perturbed).permute(2, 0, 1).unsqueeze(0).float().to(device)
+        with torch.no_grad():
+            conf = torch.softmax(model(perturbed_tensor), dim=1)[0, target_class].item()
+        confidences.append(conf)
+
+        if step % visualize_every == 0:
+            print(f"Passo {step} - Confiança: {conf:.4f}")
+            images_to_show.append((perturbed.copy(), conf, step))
+
+    return confidences, images_to_show
+
+def region_perturbation(model, image_tensor, sal_map, target_class, grid_size=10, visualize_every=10):
+    image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
+    h, w, _ = image_np.shape
+    region_h, region_w = h // grid_size, w // grid_size
+    sal_resized = sal_map.reshape(h, w)
+
+    region_importance = np.zeros((grid_size, grid_size))
+    for i in range(grid_size):
+        for j in range(grid_size):
+            region = sal_resized[i*region_h:(i+1)*region_h, j*region_w:(j+1)*region_w]
+            region_importance[i, j] = region.mean()
+
+    sorted_regions = np.argsort(region_importance.flatten())[::-1]
+    confidences = []
+    images_to_show = []
+    perturbed = image_np.copy()
+
+    print("\n=== Region Perturbation ===")
+    for step, idx in enumerate(sorted_regions, start=1):
+        i, j = divmod(idx, grid_size)
+        perturbed[i*region_h:(i+1)*region_h, j*region_w:(j+1)*region_w, :] = 0
+        perturbed_tensor = torch.tensor(perturbed).permute(2, 0, 1).unsqueeze(0).float().to(device)
+        with torch.no_grad():
+            conf = torch.softmax(model(perturbed_tensor), dim=1)[0, target_class].item()
+        confidences.append(conf)
+
+        if step % visualize_every == 0:
+            print(f"Passo {step} - Confiança: {conf:.4f}")
+            images_to_show.append((perturbed.copy(), conf, step))
+
+    return confidences, images_to_show
+
+# ===============================
+# 6️⃣ Teste com imagem
+# ===============================
+image_path = "Imagens_teste/cats/54.jpg"
+image_tensor, image = preprocess_image(image_path)
+sal_map, target_class = occlusion_map(model, image_tensor)
+
+# Confiança inicial
+with torch.no_grad():
+    probs = torch.softmax(model(image_tensor), dim=1).cpu().numpy()[0]
+initial_conf = probs[target_class]
+class_name = "Cão" if target_class == 1 else "Gato"
+print(f"\nImagem Prevista: {class_name}")
+print(f"Confiança Inicial: {initial_conf:.4f}")
+
+# Métricas
+pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, sal_map, target_class)
+region_conf, region_imgs = region_perturbation(model, image_tensor, sal_map, target_class)
+
+
+# ===============================
+# 7️⃣ Visualização (mantida)
+# ===============================
+plt.figure(figsize=(15,4))
+plt.subplot(1,3,1)
+plt.imshow(image)
+plt.axis('off')
+plt.title(f"Imagem Original ({class_name})")
+
+plt.subplot(1,3,2)
+plt.imshow(sal_map, cmap='hot')
+plt.axis('off')
+plt.title("Occlusion Map")
+
+plt.subplot(1,3,3)
+plt.plot(pixel_conf, label="Pixel Flipping")
+plt.plot(region_conf, label="Region Perturbation")
+plt.xlabel("Passos")
+plt.ylabel("Confiança")
+plt.legend()
+plt.title("Avaliação das Métricas")
+
+plt.tight_layout()
+plt.show()
+
+# ===============================
+# 8️⃣ Mostrar evolução das imagens
+# ===============================
+def show_evolution(images_list, title):
+    plt.figure(figsize=(20, 8))
+    for idx, (img, conf, step) in enumerate(images_list):
+        plt.subplot(2, (len(images_list)+1)//2, idx+1)
+        plt.imshow(img)
+        plt.axis('off')
+        plt.title(f"Passo {step}\nConf: {conf:.2f}")
+    plt.suptitle(title, fontsize=14)
+    plt.tight_layout()
+    plt.show()
+
+show_evolution(pixel_imgs, "Evolução da Imagem - Pixel Flipping")
+show_evolution(region_imgs, "Evolução da Imagem - Region Perturbation")
