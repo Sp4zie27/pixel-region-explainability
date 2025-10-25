@@ -6,14 +6,12 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ===============================
-# 1️⃣ Configuração do device
-# ===============================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ===============================
-# 2️⃣ Modelo CNN
-# ===============================
+
+# --------------------------- CNN ---------------------------
+
+
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -57,17 +55,19 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-# ===============================
-# 3️⃣ Carregar modelo treinado
-# ===============================
+
+# --------------------------- Modelo ---------------------------
+
+
 model_path = "../modelo/cnn_cats_dogs.pth"
 model = CNN().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-# ===============================
-# 4️⃣ Pré-processamento da imagem
-# ===============================
+
+# --------------------------- Pré-Processamento ---------------------------
+
+
 def preprocess_image(image_path):
     transform = transforms.Compose([
         transforms.Resize((150, 150)),
@@ -77,9 +77,10 @@ def preprocess_image(image_path):
     tensor = transform(image).unsqueeze(0).to(device)
     return tensor, image
 
-# ===============================
-# 5️⃣ Integrated Gradients
-# ===============================
+
+# --------------------------- Integrated Gradients ---------------------------
+
+
 def integrated_gradients(model, image_tensor, target_class=None, baseline=None, steps=50):
     model.zero_grad()
 
@@ -107,9 +108,10 @@ def integrated_gradients(model, image_tensor, target_class=None, baseline=None, 
     ig_map = np.maximum(ig_map, 0)
     return ig_map, target_class
 
-# ===============================
-# 6️⃣ Métricas com prints e imagens
-# ===============================
+
+# --------------------------- Pixel Flipping ---------------------------
+
+
 def pixel_flipping(model, image_tensor, importance_map, target_class, steps=100, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
     flat_map = importance_map.mean(axis=-1).flatten()
@@ -135,6 +137,9 @@ def pixel_flipping(model, image_tensor, importance_map, target_class, steps=100,
             images_to_show.append((perturbed.copy(), conf, step))
 
     return confidences, images_to_show
+
+
+# --------------------------- Region Pertubacion ---------------------------
 
 
 def region_perturbation(model, image_tensor, importance_map, target_class, grid_size=10, visualize_every=10):
@@ -169,10 +174,10 @@ def region_perturbation(model, image_tensor, importance_map, target_class, grid_
 
     return confidences, images_to_show
 
-# ===============================
-# 7️⃣ Teste e Visualização
-# ===============================
-image_path = "Imagens_teste/cats/54.jpg"
+
+# --------------------------- Teste Imagem ---------------------------
+
+image_path = "Imagens_teste/cats/1278.jpg"
 image_tensor, image = preprocess_image(image_path)
 ig_map, target_class = integrated_gradients(model, image_tensor)
 
@@ -189,14 +194,13 @@ print(f"Confiança Inicial: {initial_conf:.4f}")
 pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, ig_map, target_class)
 region_conf, region_imgs = region_perturbation(model, image_tensor, ig_map, target_class)
 
-# Normalização
+
+# --------------------------- Visualização Gráfica ---------------------------
+
 image_resized = np.array(image.resize((150, 150))) / 255.0
 ig_map_norm = (ig_map - ig_map.min()) / (ig_map.max() - ig_map.min())
 gradients_at_image = np.clip(image_resized * ig_map_norm * 3, 0, 1)
 
-# ===============================
-# 8️⃣ Plot final (mantido)
-# ===============================
 plt.figure(figsize=(18, 4))
 
 plt.subplot(1, 4, 1)
@@ -225,9 +229,6 @@ plt.title("Avaliação de Métricas")
 plt.tight_layout()
 plt.show()
 
-# ===============================
-# 9️⃣ Mostrar evolução das imagens
-# ===============================
 def show_evolution(images_list, title):
     plt.figure(figsize=(20, 8))
     for idx, (img, conf, step) in enumerate(images_list):

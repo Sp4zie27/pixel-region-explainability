@@ -23,5 +23,5 @@ O trabalho permite:
 [![Matplotlib](https://img.shields.io/badge/Matplotlib-ffffff?style=for-the-badge&logo=Matplotlib&logoColor=black)](https://matplotlib.org)
 [![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white)](https://numpy.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![Quantus](https://img.shields.io/badge/Quantus-000000?style=for-the-badge&logo=python&logoColor=white)](https://github.com/understandable-machine-intelligence-lab/Quantus)
+
 

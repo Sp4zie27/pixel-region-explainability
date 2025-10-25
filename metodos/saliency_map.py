@@ -6,14 +6,12 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ===============================
-# Configuração do device
-# ===============================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ===============================
-# 1️⃣ Classe CNN
-# ===============================
+
+# --------------------------- CNN ---------------------------
+
+
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -57,9 +55,10 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-# ===============================
-# 2️⃣ Inicializar modelo
-# ===============================
+
+# --------------------------- Modelo ---------------------------
+
+
 model_path = "../modelo/cnn_cats_dogs.pth"
 
 # Inicializa a arquitetura e carrega pesos
@@ -67,9 +66,10 @@ model = CNN().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-# ===============================
-# 3️⃣ Pré-processamento da imagem
-# ===============================
+
+# --------------------------- Pré-Processamento ---------------------------
+
+
 def preprocess_image(image_path):
     transform = transforms.Compose([
         transforms.Resize((150, 150)),
@@ -79,9 +79,10 @@ def preprocess_image(image_path):
     tensor = transform(image).unsqueeze(0).to(device)
     return tensor, image
 
-# ===============================
-# 4️⃣ Saliency Map (gradients)
-# ===============================
+
+# --------------------------- Saliency Map ---------------------------
+
+
 def saliency_map(model, image_tensor, target_class=None):
     image_tensor.requires_grad_()
     output = model(image_tensor)
@@ -93,9 +94,10 @@ def saliency_map(model, image_tensor, target_class=None):
     saliency = saliency.max(axis=0)  # pega canal mais importante
     return saliency, target_class
 
-# ===============================
-# 5️⃣ Métricas com evolução de imagens e prints
-# ===============================
+
+# --------------------------- Pixel Flipping ---------------------------
+
+
 def pixel_flipping(model, image_tensor, saliency, target_class, steps=100, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
     flat_saliency = saliency.flatten()
@@ -122,6 +124,9 @@ def pixel_flipping(model, image_tensor, saliency, target_class, steps=100, visua
             images_to_show.append((perturbed.copy(), conf, step))
 
     return confidences, images_to_show
+
+
+# --------------------------- Region Pertubacion ---------------------------
 
 
 def region_perturbation(model, image_tensor, saliency, target_class, grid_size=10, visualize_every=10):
@@ -157,14 +162,14 @@ def region_perturbation(model, image_tensor, saliency, target_class, grid_size=1
 
     return confidences, images_to_show
 
-# ===============================
-# 6️⃣ Teste com imagem e métricas
-# ===============================
-image_path = "Imagens_teste/cats/54.jpg"
+
+# --------------------------- Teste Imagem ---------------------------
+
+
+image_path = "Imagens_teste/cats/1278.jpg"
 image_tensor, image = preprocess_image(image_path)
 saliency, target_class = saliency_map(model, image_tensor)
 
-# Classe prevista e confiança inicial
 with torch.no_grad():
     probs = torch.softmax(model(image_tensor), dim=1).cpu().numpy()[0]
 initial_conf = probs[target_class]
@@ -176,9 +181,10 @@ print(f"Confiança Inicial: {initial_conf:.4f}")
 pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, saliency, target_class, steps=100, visualize_every=10)
 region_conf, region_imgs = region_perturbation(model, image_tensor, saliency, target_class, grid_size=10, visualize_every=10)
 
-# ===============================
-# 7️⃣ Visualização final (mantida)
-# ===============================
+
+# --------------------------- Visualização Gráfica ---------------------------
+
+
 plt.figure(figsize=(15,4))
 plt.subplot(1,3,1)
 plt.imshow(image)
@@ -201,9 +207,6 @@ plt.title("Avaliação Métricas")
 plt.tight_layout()
 plt.show()
 
-# ===============================
-# 8️⃣ Mostrar evolução das imagens a cada 10 passos
-# ===============================
 def show_evolution(images_list, title):
     plt.figure(figsize=(20, 8))
     for idx, (img, conf, step) in enumerate(images_list):

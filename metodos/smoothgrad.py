@@ -6,14 +6,12 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ===============================
-# Configuração do device
-# ===============================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ===============================
-# 1️⃣ Modelo CNN
-# ===============================
+
+# --------------------------- CNN ---------------------------
+
+
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -57,17 +55,19 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-# ===============================
-# 2️⃣ Inicializar modelo
-# ===============================
+
+# --------------------------- Modelo ---------------------------
+
+
 model_path = "../modelo/cnn_cats_dogs.pth"
 model = CNN().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-# ===============================
-# 3️⃣ Pré-processamento da imagem
-# ===============================
+
+# --------------------------- Pré-Processameto ---------------------------
+
+
 def preprocess_image(image_path):
     transform = transforms.Compose([
         transforms.Resize((150, 150)),
@@ -77,9 +77,10 @@ def preprocess_image(image_path):
     tensor = transform(image).unsqueeze(0).to(device)
     return tensor, image
 
-# ===============================
-# 4️⃣ SmoothGrad
-# ===============================
+
+# --------------------------- Smooth Grad ---------------------------
+
+
 def smooth_grad(model, image_tensor, target_class=None, noise_levels=[0.0, 0.05, 0.1, 0.2, 0.3, 0.5], num_samples=50):
     smoothed_maps = []
     for noise_std in noise_levels:
@@ -101,9 +102,10 @@ def smooth_grad(model, image_tensor, target_class=None, noise_levels=[0.0, 0.05,
         smoothed_maps.append(avg_grad)
     return smoothed_maps, noise_levels, target_class
 
-# ===============================
-# 5️⃣ Pixel Flipping
-# ===============================
+
+# --------------------------- Pixel Flipping ---------------------------
+
+
 def pixel_flipping(model, image_tensor, grad_map, target_class, steps=100, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1,2,0).cpu().numpy()
     flat_map = grad_map.max(axis=2).flatten()
@@ -128,9 +130,9 @@ def pixel_flipping(model, image_tensor, grad_map, target_class, steps=100, visua
             images_to_show.append((perturbed.copy(), conf, step))
     return confidences, images_to_show
 
-# ===============================
-# 6️⃣ Region Perturbation
-# ===============================
+
+# --------------------------- Region Pertubacion ---------------------------
+
 def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=10, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1,2,0).cpu().numpy()
     h, w, _ = image_np.shape
@@ -159,10 +161,11 @@ def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=1
             images_to_show.append((perturbed.copy(), conf, step))
     return confidences, images_to_show
 
-# ===============================
-# 7️⃣ Execução
-# ===============================
-image_path = "Imagens_teste/dogs/5861.jpg"
+
+# --------------------------- Teste Imagem ---------------------------
+
+
+image_path = "Imagens_teste/cats/1278.jpg"
 image_tensor, image = preprocess_image(image_path)
 smooth_maps, noise_levels, target_class = smooth_grad(model, image_tensor)
 
@@ -173,9 +176,11 @@ class_name = "Cão" if target_class==1 else "Gato"
 print(f"\nImagem Prevista: {class_name}")
 print(f"Confiança Inicial: {initial_conf:.4f}")
 
-# ===============================
-# 8️⃣ Visualização SmoothGrad
-# ===============================
+
+
+# --------------------------- Visualização Gráfica ---------------------------
+
+
 plt.figure(figsize=(20,4))
 for idx, grad_map in enumerate(smooth_maps):
     plt.subplot(1, len(smooth_maps)+1, idx+1)
@@ -189,13 +194,9 @@ plt.title("Imagem Original")
 plt.tight_layout()
 plt.show()
 
-# ===============================
-# 9️⃣ Métricas com evolução
-# ===============================
 pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, smooth_maps[0], target_class)
 region_conf, region_imgs = region_perturbation(model, image_tensor, smooth_maps[0], target_class)
 
-# Plot grande das métricas
 plt.figure(figsize=(10,4))
 plt.plot(pixel_conf, label="Pixel Flipping")
 plt.plot(region_conf, label="Region Perturbation")
@@ -205,9 +206,6 @@ plt.title("Avaliação das Métricas com SmoothGrad 0%")
 plt.legend()
 plt.show()
 
-# ===============================
-# 10️⃣ Evolução das imagens
-# ===============================
 def show_evolution(images_list, title):
     plt.figure(figsize=(20,8))
     for idx,(img,conf,step) in enumerate(images_list):

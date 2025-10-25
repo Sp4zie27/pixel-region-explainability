@@ -1,14 +1,9 @@
-# ===============================
-# PREPROCESSING.PY
-# ===============================
-
 import os
 import random
 from shutil import copyfile
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
-# Paths
 root_folder = '../PetImages'
 cat_folder = os.path.join(root_folder, "Cat")
 dog_folder = os.path.join(root_folder, "Dog")
@@ -21,8 +16,6 @@ training_path = os.path.join(base_dir, 'training')
 validation_path = os.path.join(base_dir, 'validation')
 test_path = os.path.join(base_dir, 'test')
 
-
-# Function to split data
 def split_data(main_dir, training_dir, validation_dir, test_dir=None, include_test_split=True, split_size=0.9):
     files = [f for f in os.listdir(main_dir) if os.path.getsize(os.path.join(main_dir, f)) > 0]
     shuffled_files = random.sample(files, len(files))
@@ -48,8 +41,6 @@ def split_data(main_dir, training_dir, validation_dir, test_dir=None, include_te
 
     print(f"Divisão: {main_dir}")
 
-
-# Split cats and dogs
 include_test = True
 split_data(cat_folder, os.path.join(training_path, 'cats'), os.path.join(validation_path, 'cats'),
            os.path.join(test_path, 'cats'), include_test)
@@ -62,7 +53,6 @@ transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
-# Create datasets and dataloaders
 train_dataset = datasets.ImageFolder(root=training_path, transform=transform)
 validation_dataset = datasets.ImageFolder(root=validation_path, transform=transform)
 test_dataset = datasets.ImageFolder(root=test_path, transform=transform) if include_test else None

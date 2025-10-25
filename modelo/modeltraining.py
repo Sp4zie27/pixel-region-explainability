@@ -1,7 +1,3 @@
-# ===============================
-# MODELTRAINING_CORRIGIDO.PY
-# ===============================
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,17 +8,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# -------------------------------
-# Device
-# -------------------------------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 class_names = ['Cat', 'Dog']
 
-# -------------------------------
-# Data Preprocessing
-# -------------------------------
 transform = transforms.Compose([
     transforms.Resize((150, 150)),
     transforms.ToTensor()
@@ -36,9 +26,6 @@ train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 validation_loader = DataLoader(validation_dataset, batch_size=64, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
-# -------------------------------
-# CNN Model
-# -------------------------------
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -84,15 +71,9 @@ class CNN(nn.Module):
 
 model = CNN().to(device)
 
-# -------------------------------
-# Loss and Optimizer
-# -------------------------------
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# -------------------------------
-# Training Loop
-# -------------------------------
 num_epochs = 20
 train_loss_history, train_acc_history = [], []
 val_loss_history, val_acc_history = [], []
@@ -135,9 +116,6 @@ for epoch in range(num_epochs):
 
     print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.2f}%, Val Loss: {val_loss:.4f}, Val Accuracy: {val_acc:.2f}%")
 
-# -------------------------------
-# Test Evaluation
-# -------------------------------
 model.eval()
 test_loss, test_correct, test_total = 0.0, 0, 0
 with torch.no_grad():
@@ -153,16 +131,9 @@ test_loss /= len(test_loader)
 test_acc = 100 * test_correct / test_total
 print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_acc:.2f}%")
 
-# -------------------------------
-# Save Full Model (arquitetura + pesos)
-# -------------------------------
 torch.save(model.state_dict(), "cnn_cats_dogs.pth")
 print("Modelo completo salvo em 'cnn_cats_dogs.pth'")
 
-
-# -------------------------------
-# Plot Training History
-# -------------------------------
 results = pd.DataFrame({
     'epoch': range(1, num_epochs + 1),
     'train_loss': train_loss_history,
@@ -190,9 +161,6 @@ plt.legend()
 plt.tight_layout()
 plt.show()
 
-# -------------------------------
-# Visualize Predictions
-# -------------------------------
 def plot_prediction(data_loader, model, n_images, class_names):
     model.eval()
     images, labels = next(iter(data_loader))

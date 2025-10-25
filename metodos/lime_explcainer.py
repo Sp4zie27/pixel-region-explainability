@@ -9,14 +9,12 @@ from lime import lime_image
 from skimage.segmentation import mark_boundaries
 import cv2
 
-# ===============================
-# Configuração do device
-# ===============================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ===============================
-# 1️⃣ Classe CNN
-# ===============================
+
+# --------------------------- CNN ---------------------------
+
+
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -58,18 +56,18 @@ class CNN(nn.Module):
         return x
 
 
-# ===============================
-# 2️⃣ Inicializar modelo
-# ===============================
+# --------------------------- Modelo ---------------------------
+
+
 model_path = "../modelo/cnn_cats_dogs.pth"
 model = CNN().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
 
-# ===============================
-# 3️⃣ Pré-processamento da imagem
-# ===============================
+# --------------------------- Pré-Processamento ---------------------------
+
+
 def preprocess_image(image_path):
     transform = transforms.Compose([
         transforms.Resize((150, 150)),
@@ -80,9 +78,9 @@ def preprocess_image(image_path):
     return tensor, np.array(image.resize((150, 150)))
 
 
-# ===============================
-# 4️⃣ Função de previsão para o LIME
-# ===============================
+# --------------------------- Lime ---------------------------
+
+
 def batch_predict(images):
     model.eval()
     transform = transforms.Compose([
@@ -97,9 +95,6 @@ def batch_predict(images):
     return probs
 
 
-# ===============================
-# 5️⃣ LIME
-# ===============================
 image_path = "Imagens_teste/cats/54.jpg"
 image_tensor, image_np = preprocess_image(image_path)
 
@@ -117,7 +112,7 @@ lime_image_map, mask = explanation.get_image_and_mask(
     target_class,
     positive_only=True,
     hide_rest=False,
-    num_features=8,  # número de segmentos a explicar
+    num_features=8,
     min_weight=0.01
 )
 
@@ -127,9 +122,6 @@ num_segments = len(segments)
 print(f"Total de segmentos analisados: {num_segments}")
 
 
-# ===============================
-# 6️⃣ Função para confiança de um segmento
-# ===============================
 def confidence_for_segment(model, image_np, seg_mask, target_class):
     img_seg = image_np.copy()
     img_seg[seg_mask == 0] = 0
@@ -139,9 +131,9 @@ def confidence_for_segment(model, image_np, seg_mask, target_class):
     return prob
 
 
-# ===============================
-# 7️⃣ Visualização linha a linha + prints
-# ===============================
+# --------------------------- Visualização Gráfica ---------------------------
+
+
 fig, axes = plt.subplots(num_segments, 3, figsize=(12, 4 * num_segments))
 
 if num_segments == 1:
@@ -152,23 +144,18 @@ for i, seg_val in enumerate(segments):
     segmented_image = image_np.copy()
     segmented_image[seg_mask == 0] = 0
 
-    # confiança do modelo apenas para este segmento
     conf_value = confidence_for_segment(model, image_np, seg_mask, target_class)
 
-    # Print no console
     print(f"Segmento {i+1}/{num_segments} - Confiança: {conf_value:.4f}")
 
-    # Coluna 1: Imagem original
     axes[i, 0].imshow(image_np)
     axes[i, 0].set_title("Imagem Original")
     axes[i, 0].axis("off")
 
-    # Coluna 2: Segmento ativo
     axes[i, 1].imshow(segmented_image)
     axes[i, 1].set_title(f"Segmento {i+1}")
     axes[i, 1].axis("off")
 
-    # Coluna 3: Gráfico de confiança
     axes[i, 2].bar(["Confiança"], [conf_value], color="tab:blue")
     axes[i, 2].set_ylim(0, 1)
     axes[i, 2].set_title(f"Confiança = {conf_value:.3f}")

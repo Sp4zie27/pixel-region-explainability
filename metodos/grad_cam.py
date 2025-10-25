@@ -6,14 +6,12 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ===============================
-# Configuração do device
-# ===============================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ===============================
-# 1️⃣ Classe CNN
-# ===============================
+
+# --------------------------- CNN ---------------------------
+
+
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -57,17 +55,19 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-# ===============================
-# 2️⃣ Inicializar modelo
-# ===============================
+
+# --------------------------- Modelo ---------------------------
+
+
 model_path = "../modelo/cnn_cats_dogs.pth"
 model = CNN().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-# ===============================
-# 3️⃣ Pré-processamento da imagem
-# ===============================
+
+# --------------------------- Pré-Processamento ---------------------------
+
+
 def preprocess_image(image_path):
     transform = transforms.Compose([
         transforms.Resize((150, 150)),
@@ -77,9 +77,10 @@ def preprocess_image(image_path):
     tensor = transform(image).unsqueeze(0).to(device)
     return tensor, image
 
-# ===============================
-# 4️⃣ Grad-CAM
-# ===============================
+
+# --------------------------- Grad-Cam ---------------------------
+
+
 class GradCAM:
     def __init__(self, model, target_layer):
         self.model = model
@@ -110,9 +111,10 @@ class GradCAM:
         grad_cam_map = (grad_cam_map - grad_cam_map.min()) / (grad_cam_map.max() - grad_cam_map.min() + 1e-8)
         return grad_cam_map, class_idx
 
-# ===============================
-# 5️⃣ Pixel Flipping com prints
-# ===============================
+
+# --------------------------- Pixel-Flipping ---------------------------
+
+
 def pixel_flipping(model, image_tensor, grad_map, target_class, steps=100, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1,2,0).cpu().numpy()
     flat_map = grad_map.flatten()
@@ -141,9 +143,10 @@ def pixel_flipping(model, image_tensor, grad_map, target_class, steps=100, visua
 
     return confidences, perturbed_images
 
-# ===============================
-# 6️⃣ Region Perturbation com prints
-# ===============================
+
+# --------------------------- Region Pertubacion ---------------------------
+
+
 def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=10, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1,2,0).cpu().numpy()
     h, w, _ = image_np.shape
@@ -176,9 +179,10 @@ def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=1
 
     return confidences, perturbed_images
 
-# ===============================
-# 7️⃣ Teste com imagem
-# ===============================
+
+# --------------------------- Teste Imagem ---------------------------
+
+
 image_path = "Imagens_teste/cats/1278.jpg"
 image_tensor, image = preprocess_image(image_path)
 
@@ -196,9 +200,10 @@ print(f"Confiança Inicial: {initial_conf:.4f}")
 pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, grad_map, target_class, steps=100, visualize_every=10)
 region_conf, region_imgs = region_perturbation(model, image_tensor, grad_map, target_class, grid_size=10, visualize_every=10)
 
-# ===============================
-# 8️⃣ Visualização principal
-# ===============================
+
+# --------------------------- Visualizações Gráficas ---------------------------
+
+
 plt.figure(figsize=(15,5))
 plt.subplot(1,3,1)
 plt.imshow(image)
@@ -226,9 +231,6 @@ plt.title("Evolução da Confiança")
 plt.tight_layout()
 plt.show()
 
-# ===============================
-# 9️⃣ Mostrar evolução das imagens
-# ===============================
 def show_evolution(images_list, title):
     plt.figure(figsize=(15,8))
     num_imgs = len(images_list)

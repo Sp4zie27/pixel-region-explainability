@@ -6,14 +6,12 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ===============================
-# Configuração do device
-# ===============================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ===============================
-# 1️⃣ Classe CNN
-# ===============================
+
+# --------------------------- CNN ---------------------------
+
+
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -57,17 +55,19 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-# ===============================
-# 2️⃣ Inicializar modelo
-# ===============================
+
+# --------------------------- Modelo ---------------------------
+
+
 model_path = "../modelo/cnn_cats_dogs.pth"
 model = CNN().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-# ===============================
-# 3️⃣ Pré-processamento da imagem
-# ===============================
+
+# --------------------------- Pré-Processamento ---------------------------
+
+
 def preprocess_image(image_path):
     transform = transforms.Compose([
         transforms.Resize((150, 150)),
@@ -77,9 +77,10 @@ def preprocess_image(image_path):
     tensor = transform(image).unsqueeze(0).to(device)
     return tensor, image
 
-# ===============================
-# 4️⃣ Occlusion Perturbation Map
-# ===============================
+
+# --------------------------- Occlusion Map ---------------------------
+
+
 def occlusion_map(model, image_tensor, patch_size=15, stride=8):
     _, _, H, W = image_tensor.shape
     model.eval()
@@ -102,9 +103,10 @@ def occlusion_map(model, image_tensor, patch_size=15, stride=8):
     heatmap /= heatmap.max() + 1e-8
     return heatmap, target_class
 
-# ===============================
-# 5️⃣ Métricas (com prints e imagens)
-# ===============================
+
+# --------------------------- Pixel Flipping ---------------------------
+
+
 def pixel_flipping(model, image_tensor, sal_map, target_class, steps=100, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
     flat_sal = sal_map.flatten()
@@ -130,6 +132,10 @@ def pixel_flipping(model, image_tensor, sal_map, target_class, steps=100, visual
             images_to_show.append((perturbed.copy(), conf, step))
 
     return confidences, images_to_show
+
+
+# --------------------------- Region pertubacion ---------------------------
+
 
 def region_perturbation(model, image_tensor, sal_map, target_class, grid_size=10, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
@@ -163,10 +169,11 @@ def region_perturbation(model, image_tensor, sal_map, target_class, grid_size=10
 
     return confidences, images_to_show
 
-# ===============================
-# 6️⃣ Teste com imagem
-# ===============================
-image_path = "Imagens_teste/cats/54.jpg"
+
+# --------------------------- Teste Imagem ---------------------------
+
+
+image_path = "Imagens_teste/cats/1278.jpg"
 image_tensor, image = preprocess_image(image_path)
 sal_map, target_class = occlusion_map(model, image_tensor)
 
@@ -178,14 +185,13 @@ class_name = "Cão" if target_class == 1 else "Gato"
 print(f"\nImagem Prevista: {class_name}")
 print(f"Confiança Inicial: {initial_conf:.4f}")
 
-# Métricas
 pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, sal_map, target_class)
 region_conf, region_imgs = region_perturbation(model, image_tensor, sal_map, target_class)
 
 
-# ===============================
-# 7️⃣ Visualização (mantida)
-# ===============================
+# --------------------------- Visualização Gráfica ---------------------------
+
+
 plt.figure(figsize=(15,4))
 plt.subplot(1,3,1)
 plt.imshow(image)
@@ -208,9 +214,6 @@ plt.title("Avaliação das Métricas")
 plt.tight_layout()
 plt.show()
 
-# ===============================
-# 8️⃣ Mostrar evolução das imagens
-# ===============================
 def show_evolution(images_list, title):
     plt.figure(figsize=(20, 8))
     for idx, (img, conf, step) in enumerate(images_list):
