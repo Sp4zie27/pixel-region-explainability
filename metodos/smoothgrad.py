@@ -200,7 +200,7 @@ region_conf, region_imgs = region_perturbation(model, image_tensor, smooth_maps[
 plt.figure(figsize=(10,4))
 plt.plot(pixel_conf, label="Pixel Flipping")
 plt.plot(region_conf, label="Region Perturbation")
-plt.xlabel("Passos")
+plt.xlabel("Progresso da Perturbação (%)")
 plt.ylabel("Confiança")
 plt.title("Avaliação das Métricas com SmoothGrad 0%")
 plt.legend()
