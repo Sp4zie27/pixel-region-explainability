@@ -5,7 +5,7 @@ Este projeto tem como objetivo explorar a **interpretabilidade de modelos de mac
 
 O trabalho permite:
 - Compreender quais regiões da imagem influenciam mais as previsões do modelo.
-- Comparar diferentes métodos de explicação (Grad-CAM, Saliency Maps, LIME, SHAP, Guided Backpropagation).
+- Comparar diferentes métodos de explicação (Grad-CAM, Integrated Gradients, Occlusion Perturbation, Backpropagation, Smooth Grad).
 - Avaliar quantitativamente a qualidade das explicações.
 
 
