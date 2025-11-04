@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="d6344871-53da-446d-b095-23e8ae85f754" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/metodos/Imagens_teste/diversos/2caes.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/metodos/Imagens_teste/diversos/2gatos.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/metodos/Imagens_teste/diversos/caogato.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/metodos/grad_cam.py" beforeDir="false" afterPath="$PROJECT_DIR$/metodos/grad_cam.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;Sp4zie27&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Sp4zie27/pixel-region-explainability.git&quot;,
+    &quot;accountId&quot;: &quot;bf2060e6-7fe4-4a5e-a7de-a05ce58d7abe&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="348ldWm5ahXNU70gVhs1XfKj0aB" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.grad_cam.executor": "Run",
+    "Python.lime.executor": "Run",
+    "Python.lime_explainer.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "/Users/tiagomarques/PycharmProjects/pixel-region-explainability/metodos/Imagens_teste",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/metodos/Imagens_teste" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/metodos/Imagens_teste/diversos" />
+    </key>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-09060db00ec0-JavaScript-PY-251.26927.90" />
+        <option value="bundled-python-sdk-41e8cd69c857-64d779b69b7a-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-251.26927.90" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="d6344871-53da-446d-b095-23e8ae85f754" name="Changes" comment="" />
+      <created>1760603168932</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1760603168932</updated>
+      <workItem from="1760603170108" duration="158000" />
+      <workItem from="1760971386219" duration="305000" />
+      <workItem from="1761299240245" duration="719000" />
+      <workItem from="1761408460263" duration="372000" />
+      <workItem from="1761561798684" duration="6483000" />
+      <workItem from="1761653114011" duration="2053000" />
+      <workItem from="1761826089283" duration="123000" />
+      <workItem from="1761911599721" duration="1000" />
+      <workItem from="1762028547887" duration="273000" />
+      <workItem from="1762197375199" duration="3723000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/pixel_region_explainability$lime.coverage" NAME="lime Coverage Results" MODIFIED="1760971552140" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/metodos" />
+    <SUITE FILE_PATH="coverage/pixel_region_explainability$grad_cam.coverage" NAME="grad_cam Coverage Results" MODIFIED="1762258801941" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/metodos" />
+    <SUITE FILE_PATH="coverage/pixel_region_explainability$lime_explainer.coverage" NAME="lime_explainer Coverage Results" MODIFIED="1760971637128" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/metodos" />
+  </component>
+</project>

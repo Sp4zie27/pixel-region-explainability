@@ -183,7 +183,8 @@ def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=1
 # --------------------------- Teste Imagem ---------------------------
 
 
-image_path = "Imagens_teste/cats/1278.jpg"
+image_path = "Imagens_teste/diversos/caogato.png"
+
 image_tensor, image = preprocess_image(image_path)
 
 grad_cam = GradCAM(model, model.conv6)
