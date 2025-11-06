@@ -166,7 +166,7 @@ def region_perturbation(model, image_tensor, saliency, target_class, grid_size=1
 # --------------------------- Teste Imagem ---------------------------
 
 
-image_path = "Imagens_teste/cats/1278.jpg"
+image_path = "Imagens_teste/dogs/5861.jpg"
 image_tensor, image = preprocess_image(image_path)
 saliency, target_class = saliency_map(model, image_tensor)
 
@@ -189,12 +189,12 @@ plt.figure(figsize=(15,4))
 plt.subplot(1,3,1)
 plt.imshow(image)
 plt.axis('off')
-plt.title(f"Imagem Original ({class_name})")
+plt.title(f"Imagem Original\nClasse: {class_name}   Conf: {initial_conf:.4f}")
 
 plt.subplot(1,3,2)
 plt.imshow(saliency, cmap='hot')
 plt.axis('off')
-plt.title("Saliency Map")
+plt.title("Saliency Map: Backpropagation")
 
 plt.subplot(1,3,3)
 plt.plot(pixel_conf, label="Pixel Flipping")
@@ -213,7 +213,7 @@ def show_evolution(images_list, title):
         plt.subplot(2, (len(images_list)+1)//2, idx+1)
         plt.imshow(img)
         plt.axis('off')
-        plt.title(f"Passo {step}\nConf: {conf:.2f}")
+        plt.title(f"Remoção: {step}%\nConf: {conf:.2f}")
     plt.suptitle(title, fontsize=16)
     plt.tight_layout()
     plt.show()

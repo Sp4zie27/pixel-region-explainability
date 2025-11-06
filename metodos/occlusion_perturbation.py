@@ -81,7 +81,7 @@ def preprocess_image(image_path):
 # --------------------------- Occlusion Map ---------------------------
 
 
-def occlusion_map(model, image_tensor, patch_size=15, stride=8):
+def occlusion_map(model, image_tensor, patch_size=8, stride=4):
     _, _, H, W = image_tensor.shape
     model.eval()
     with torch.no_grad():
@@ -173,7 +173,7 @@ def region_perturbation(model, image_tensor, sal_map, target_class, grid_size=10
 # --------------------------- Teste Imagem ---------------------------
 
 
-image_path = "Imagens_teste/cats/1278.jpg"
+image_path = "Imagens_teste/cats/12387.jpg"
 image_tensor, image = preprocess_image(image_path)
 sal_map, target_class = occlusion_map(model, image_tensor)
 
@@ -196,7 +196,7 @@ plt.figure(figsize=(15,4))
 plt.subplot(1,3,1)
 plt.imshow(image)
 plt.axis('off')
-plt.title(f"Imagem Original ({class_name})")
+plt.title(f"Imagem Original\nClasse: {class_name}   Conf: {initial_conf:.4f}")
 
 plt.subplot(1,3,2)
 plt.imshow(sal_map, cmap='hot')
@@ -220,7 +220,7 @@ def show_evolution(images_list, title):
         plt.subplot(2, (len(images_list)+1)//2, idx+1)
         plt.imshow(img)
         plt.axis('off')
-        plt.title(f"Passo {step}\nConf: {conf:.2f}")
+        plt.title(f"Remoção: {step}%\nConf: {conf:.2f}")
     plt.suptitle(title, fontsize=14)
     plt.tight_layout()
     plt.show()

@@ -165,7 +165,7 @@ def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=1
 # --------------------------- Teste Imagem ---------------------------
 
 
-image_path = "Imagens_teste/cats/1278.jpg"
+image_path = "Imagens_teste/dogs/367.jpg"
 image_tensor, image = preprocess_image(image_path)
 smooth_maps, noise_levels, target_class = smooth_grad(model, image_tensor)
 
@@ -190,7 +190,7 @@ for idx, grad_map in enumerate(smooth_maps):
 plt.subplot(1, len(smooth_maps)+1, len(smooth_maps)+1)
 plt.imshow(image)
 plt.axis("off")
-plt.title("Imagem Original")
+plt.title(f"Imagem Original\nClasse: {class_name}   Conf: {initial_conf:.4f}")
 plt.tight_layout()
 plt.show()
 
@@ -212,7 +212,7 @@ def show_evolution(images_list, title):
         plt.subplot(2,(len(images_list)+1)//2, idx+1)
         plt.imshow(img)
         plt.axis('off')
-        plt.title(f"Passo {step}\nConf: {conf:.2f}")
+        plt.title(f"Remoção: {step}%\nConf: {conf:.2f}")
     plt.suptitle(title, fontsize=16)
     plt.tight_layout()
     plt.show()

@@ -183,7 +183,7 @@ def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=1
 # --------------------------- Teste Imagem ---------------------------
 
 
-image_path = "Imagens_teste/diversos/caogato.png"
+image_path = "Imagens_teste/cats/1278.jpg"
 
 image_tensor, image = preprocess_image(image_path)
 
@@ -209,7 +209,7 @@ plt.figure(figsize=(15,5))
 plt.subplot(1,3,1)
 plt.imshow(image)
 plt.axis('off')
-plt.title(f"Imagem Original ({class_name})")
+plt.title(f"Imagem Original\nClasse: {class_name}   Conf: {initial_conf:.4f}")
 
 from PIL import Image as PILImage
 grad_map_img = PILImage.fromarray((grad_map * 255).astype(np.uint8))
@@ -239,7 +239,7 @@ def show_evolution(images_list, title):
         plt.subplot(2, (num_imgs+1)//2, idx+1)
         plt.imshow(img)
         plt.axis('off')
-        plt.title(f"Passo {step}\nConf: {conf:.2f}")
+        plt.title(f"Remoção: {step}%\nConf: {conf:.2f}")
     plt.suptitle(title, fontsize=14)
     plt.tight_layout()
     plt.show()

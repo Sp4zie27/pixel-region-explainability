@@ -177,7 +177,7 @@ def region_perturbation(model, image_tensor, importance_map, target_class, grid_
 
 # --------------------------- Teste Imagem ---------------------------
 
-image_path = "Imagens_teste/cats/1278.jpg"
+image_path = "Imagens_teste/cats/11138.jpg"
 image_tensor, image = preprocess_image(image_path)
 ig_map, target_class = integrated_gradients(model, image_tensor)
 
@@ -206,7 +206,7 @@ plt.figure(figsize=(18, 4))
 plt.subplot(1, 4, 1)
 plt.imshow(image)
 plt.axis('off')
-plt.title(f"Imagem Original ({class_name})")
+plt.title(f"Imagem Original\nClasse: {class_name}   Conf: {initial_conf:.4f}")
 
 plt.subplot(1, 4, 2)
 plt.imshow(ig_map_norm, cmap='hot')
@@ -235,7 +235,7 @@ def show_evolution(images_list, title):
         plt.subplot(2, (len(images_list) + 1) // 2, idx + 1)
         plt.imshow(img)
         plt.axis('off')
-        plt.title(f"Passo {step}\nConf: {conf:.2f}")
+        plt.title(f"Remoção: {step}%\nConf: {conf:.2f}")
     plt.suptitle(title, fontsize=14)
     plt.tight_layout()
     plt.show()
