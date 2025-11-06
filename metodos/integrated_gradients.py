@@ -133,7 +133,7 @@ def pixel_flipping(model, image_tensor, importance_map, target_class, steps=100,
         confidences.append(conf)
 
         if step % visualize_every == 0:
-            print(f"Passo {step} - Confiança: {conf:.4f}")
+            print(f"Remoção {step}% - Confiança: {conf:.4f}")
             images_to_show.append((perturbed.copy(), conf, step))
 
     return confidences, images_to_show
@@ -169,7 +169,7 @@ def region_perturbation(model, image_tensor, importance_map, target_class, grid_
         confidences.append(conf)
 
         if step % visualize_every == 0:
-            print(f"Passo {step} - Confiança: {conf:.4f}")
+            print(f"Remoção {step}% - Confiança: {conf:.4f}")
             images_to_show.append((perturbed.copy(), conf, step))
 
     return confidences, images_to_show
@@ -177,7 +177,7 @@ def region_perturbation(model, image_tensor, importance_map, target_class, grid_
 
 # --------------------------- Teste Imagem ---------------------------
 
-image_path = "Imagens_teste/cats/11138.jpg"
+image_path = "Imagens_teste/dogs/2373.jpg"
 image_tensor, image = preprocess_image(image_path)
 ig_map, target_class = integrated_gradients(model, image_tensor)
 

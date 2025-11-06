@@ -138,7 +138,7 @@ def pixel_flipping(model, image_tensor, grad_map, target_class, steps=100, visua
         confidences.append(conf)
 
         if step % visualize_every == 0:
-            print(f"Passo {step:3d} → Confiança: {conf:.4f}")
+            print(f"Remoção {step:3d}% → Confiança: {conf:.4f}")
             perturbed_images.append((perturbed.copy(), conf, step))
 
     return confidences, perturbed_images
@@ -174,7 +174,7 @@ def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=1
         confidences.append(conf)
 
         if step % visualize_every == 0:
-            print(f"Região {step:3d} → Confiança: {conf:.4f}")
+            print(f"Remoção {step:3d}% → Confiança: {conf:.4f}")
             perturbed_images.append((perturbed.copy(), conf, step))
 
     return confidences, perturbed_images
@@ -183,7 +183,7 @@ def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=1
 # --------------------------- Teste Imagem ---------------------------
 
 
-image_path = "Imagens_teste/cats/1278.jpg"
+image_path = "Imagens_teste/dogs/1223.jpg"
 
 image_tensor, image = preprocess_image(image_path)
 

@@ -128,13 +128,13 @@ def pixel_flipping(model, image_tensor, sal_map, target_class, steps=100, visual
         confidences.append(conf)
 
         if step % visualize_every == 0:
-            print(f"Passo {step} - Confiança: {conf:.4f}")
+            print(f"Remoção {step}% - Confiança: {conf:.4f}")
             images_to_show.append((perturbed.copy(), conf, step))
 
     return confidences, images_to_show
 
 
-# --------------------------- Region pertubacion ---------------------------
+# --------------------------- Region Pertubacion ---------------------------
 
 
 def region_perturbation(model, image_tensor, sal_map, target_class, grid_size=10, visualize_every=10):
@@ -164,7 +164,7 @@ def region_perturbation(model, image_tensor, sal_map, target_class, grid_size=10
         confidences.append(conf)
 
         if step % visualize_every == 0:
-            print(f"Passo {step} - Confiança: {conf:.4f}")
+            print(f"Remoção {step}% - Confiança: {conf:.4f}")
             images_to_show.append((perturbed.copy(), conf, step))
 
     return confidences, images_to_show
@@ -173,7 +173,7 @@ def region_perturbation(model, image_tensor, sal_map, target_class, grid_size=10
 # --------------------------- Teste Imagem ---------------------------
 
 
-image_path = "Imagens_teste/cats/12387.jpg"
+image_path = "Imagens_teste/dogs/2373.jpg"
 image_tensor, image = preprocess_image(image_path)
 sal_map, target_class = occlusion_map(model, image_tensor)
 

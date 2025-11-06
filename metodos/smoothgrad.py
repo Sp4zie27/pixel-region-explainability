@@ -126,7 +126,7 @@ def pixel_flipping(model, image_tensor, grad_map, target_class, steps=100, visua
             conf = torch.softmax(model(perturbed_tensor), dim=1)[0,target_class].item()
         confidences.append(conf)
         if step % visualize_every == 0:
-            print(f"Passo {step} - Confiança: {conf:.4f}")
+            print(f"Remoção {step}% - Confiança: {conf:.4f}")
             images_to_show.append((perturbed.copy(), conf, step))
     return confidences, images_to_show
 
@@ -157,7 +157,7 @@ def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=1
             conf = torch.softmax(model(perturbed_tensor), dim=1)[0,target_class].item()
         confidences.append(conf)
         if step % visualize_every == 0:
-            print(f"Passo {step} - Confiança: {conf:.4f}")
+            print(f"Remoção {step}% - Confiança: {conf:.4f}")
             images_to_show.append((perturbed.copy(), conf, step))
     return confidences, images_to_show
 
@@ -165,7 +165,7 @@ def region_perturbation(model, image_tensor, grad_map, target_class, grid_size=1
 # --------------------------- Teste Imagem ---------------------------
 
 
-image_path = "Imagens_teste/dogs/367.jpg"
+image_path = "Imagens_teste/dogs/2373.jpg"
 image_tensor, image = preprocess_image(image_path)
 smooth_maps, noise_levels, target_class = smooth_grad(model, image_tensor)
 

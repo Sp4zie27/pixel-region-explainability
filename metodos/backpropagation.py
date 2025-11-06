@@ -120,7 +120,7 @@ def pixel_flipping(model, image_tensor, saliency, target_class, steps=100, visua
         confidences.append(conf)
 
         if step % visualize_every == 0:
-            print(f"Passo {step} - Confiança: {conf:.4f}")
+            print(f"Remoção {step}% - Confiança: {conf:.4f}")
             images_to_show.append((perturbed.copy(), conf, step))
 
     return confidences, images_to_show
@@ -157,7 +157,7 @@ def region_perturbation(model, image_tensor, saliency, target_class, grid_size=1
         confidences.append(conf)
 
         if step % visualize_every == 0:
-            print(f"Passo {step} - Confiança: {conf:.4f}")
+            print(f"Remoção {step}% - Confiança: {conf:.4f}")
             images_to_show.append((perturbed.copy(), conf, step))
 
     return confidences, images_to_show
@@ -166,7 +166,7 @@ def region_perturbation(model, image_tensor, saliency, target_class, grid_size=1
 # --------------------------- Teste Imagem ---------------------------
 
 
-image_path = "Imagens_teste/dogs/5861.jpg"
+image_path = "Imagens_teste/dogs/2373.jpg"
 image_tensor, image = preprocess_image(image_path)
 saliency, target_class = saliency_map(model, image_tensor)
 
@@ -185,7 +185,7 @@ region_conf, region_imgs = region_perturbation(model, image_tensor, saliency, ta
 # --------------------------- Visualização Gráfica ---------------------------
 
 
-plt.figure(figsize=(15,4))
+plt.figure(figsize=(18,6))
 plt.subplot(1,3,1)
 plt.imshow(image)
 plt.axis('off')
