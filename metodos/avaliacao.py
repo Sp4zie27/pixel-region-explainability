@@ -23,25 +23,24 @@ grid_size = 10
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
-        # Bloco 1
         self.conv1 = nn.Conv2d(3, 32, 3, 1, 1)
         self.bn1 = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(32, 64, 3, 1, 1)
         self.bn2 = nn.BatchNorm2d(64)
         self.pool1 = nn.MaxPool2d(2, 2)
-        # Bloco 2
+
         self.conv3 = nn.Conv2d(64, 128, 3, 1, 1)
         self.bn3 = nn.BatchNorm2d(128)
         self.conv4 = nn.Conv2d(128, 128, 3, 1, 1)
         self.bn4 = nn.BatchNorm2d(128)
         self.pool2 = nn.MaxPool2d(2, 2)
-        # Bloco 3 (Target layer para Grad-CAM)
+
         self.conv5 = nn.Conv2d(128, 256, 3, 1, 1)
         self.bn5 = nn.BatchNorm2d(256)
         self.conv6 = nn.Conv2d(256, 256, 3, 1, 1)
         self.bn6 = nn.BatchNorm2d(256)
         self.pool3 = nn.MaxPool2d(2, 2)
-        # Camadas densas
+
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc1 = nn.Linear(256, 512)
         self.dropout = nn.Dropout(0.5)
@@ -98,7 +97,7 @@ def backpropagation(model, image_tensor, target_class=None):
     loss = output[0, target_class]
     loss.backward()
     saliency = image_tensor.grad.abs().squeeze().detach().cpu().numpy()
-    saliency = saliency.max(axis=0)  # Pega canal mais importante
+    saliency = saliency.max(axis=0)
     return saliency, target_class
 
 # Integrated Gradients
@@ -156,7 +155,7 @@ def smooth_grad(model, image_tensor, target_class=None, noise_levels=[0.1], num_
 
     return all_maps, noise_levels, target_class
 
-
+# Occlusion Perturbation
 def occlusion_map(model, image_tensor, patch_size=8, stride=4):
     _, _, H, W = image_tensor.shape
     model.eval()
@@ -215,37 +214,40 @@ class GradCAM:
 # --------------------------- Métricas de Avaliação ---------------------------
 
 # Pixel Flipping
-def pixel_flipping(model, image_tensor, backpropagation, target_class, steps=10):
+def pixel_flipping(model, image_tensor, saliency, target_class, steps=10):
     model.eval()
     image_tensor = image_tensor.clone().detach().to(device)
-    saliency = backpropagation.copy()
+    saliency = saliency.copy()
     saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min() + 1e-8)
 
     H, W = saliency.shape
     flat_indices = np.argsort(-saliency.flatten())
     step_size = len(flat_indices) // steps
 
-    confidences = [torch.softmax(model(image_tensor), dim=1)[0, target_class].item()]
+    base_conf = torch.softmax(model(image_tensor), dim=1)[0, target_class].item()
+    confidences = []
 
     with torch.no_grad():
         for i in range(1, steps + 1):
             idx_to_zero = flat_indices[: i * step_size]
             perturbed = image_tensor.clone()
             perturbed_np = perturbed.cpu().numpy()
+
             for idx in idx_to_zero:
                 y, x = divmod(idx, W)
                 perturbed_np[0, :, y, x] = 0
+
             perturbed = torch.tensor(perturbed_np).to(device)
             conf = torch.softmax(model(perturbed), dim=1)[0, target_class].item()
             confidences.append(conf)
 
-    return np.array(confidences[1:]), confidences[0]
+    return np.array(confidences), base_conf
 
 # Region Perturbation
-def region_perturbation(model, image_tensor, backpropagation, target_class, grid_size=10, visualize_every=10):
+def region_perturbation(model, image_tensor, saliency, target_class, grid_size=10, visualize_every=10):
     model.eval()
     image_tensor = image_tensor.clone().detach().to(device)
-    saliency = backpropagation.copy()
+    saliency = saliency.copy()
     saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min() + 1e-8)
 
     H, W = saliency.shape
@@ -260,33 +262,27 @@ def region_perturbation(model, image_tensor, backpropagation, target_class, grid
             region_scores.append(((i, j), score))
     region_scores.sort(key=lambda x: -x[1])
 
+    base_conf = torch.softmax(model(image_tensor), dim=1)[0, target_class].item()
     confidences = []
-    with torch.no_grad():
-        base_conf = torch.softmax(model(image_tensor), dim=1)[0, target_class].item()
-        perturbed = image_tensor.clone()
 
-        for idx in range(len(region_scores)):
+    with torch.no_grad():
+        perturbed = image_tensor.clone()
+        total_blocks = len(region_scores)
+
+        for idx in range(total_blocks):
             i, j = region_scores[idx][0]
             perturbed[:, :, i * block_h:(i + 1) * block_h, j * block_w:(j + 1) * block_w] = 0
-            conf = torch.softmax(model(perturbed), dim=1)[0, target_class].item()
-            confidences.append(conf)
 
-    reduced_confidences = []
-    total_blocks = len(region_scores)
+            if (idx + 1) % (total_blocks // visualize_every) == 0:
+                conf = torch.softmax(model(perturbed), dim=1)[0, target_class].item()
+                confidences.append(conf)
 
-    for i in range(1, visualize_every + 1):
-        index = int((i / visualize_every) * total_blocks) - 1
-        reduced_confidences.append(confidences[index])
+    return np.array(confidences), base_conf
 
-    return np.array(reduced_confidences), base_conf
+# --------------------------- Processamento de Imagens ---------------------------
 
-
-# --------------------------- Procesasmento de Imagens ---------------------------
-
-# Lista de imagens
 image_paths = [os.path.join(image_folder, f) for f in os.listdir(image_folder) if f.endswith((".jpg", ".png"))]
 
-# Dicionários para armazenar todas as confianças
 pixel_flipping_all = {
     "Backpropagation": [],
     "Integrated Gradients": [],
@@ -310,116 +306,142 @@ for image_path in tqdm(image_paths, desc="Processando imagens"):
         print(f"Erro ao processar imagem {image_path}: {e}")
         continue
 
-    # Determinar a classe prevista (target_class) apenas uma vez
     with torch.no_grad():
         output = model(image_tensor)
         target_class = output.argmax(dim=1).item()
 
-# --------------------------- Geração dos Mapas de Importância ---------------------------
+    # --------------------------- Geração dos Mapas de Importância ---------------------------
 
     saliency, _ = backpropagation(model, image_tensor, target_class=target_class)
     ig_map, _ = integrated_gradients(model, image_tensor, target_class=target_class, steps=50)
     smaps, _, _ = smooth_grad(model, image_tensor, target_class=target_class, noise_levels=[0.1], num_samples=20)
     smooth_map = smaps[0]
     occ_map, _ = occlusion_map(model, image_tensor, patch_size=8, stride=4)
-    gradcam = GradCAM(model, model.conv6)  # Última conv layer
+    gradcam = GradCAM(model, model.conv6)
     gcam_map, _ = gradcam(image_tensor)
 
-# --------------------------- Pixel Flipping ---------------------------
+    # --------------------------- Pixel Flipping  ---------------------------
 
-    pf_bp, _ = pixel_flipping(model, image_tensor, saliency, target_class, steps=steps)
-    pf_ig, _ = pixel_flipping(model, image_tensor, ig_map, target_class, steps=steps)
-    pf_sg, _ = pixel_flipping(model, image_tensor, smooth_map, target_class, steps=steps)
-    pf_occ, _ = pixel_flipping(model, image_tensor, occ_map, target_class, steps=steps)
-    pf_gcam, _ = pixel_flipping(model, image_tensor, gcam_map, target_class, steps=steps)
+    pf_confidences, base_conf = pixel_flipping(model, image_tensor, saliency, target_class, steps=steps)
+    pf_ig_conf, _ = pixel_flipping(model, image_tensor, ig_map, target_class, steps=steps)
+    pf_sg_conf, _ = pixel_flipping(model, image_tensor, smooth_map, target_class, steps=steps)
+    pf_occ_conf, _ = pixel_flipping(model, image_tensor, occ_map, target_class, steps=steps)
+    pf_gcam_conf, _ = pixel_flipping(model, image_tensor, gcam_map, target_class, steps=steps)
 
-    pixel_flipping_all["Backpropagation"].append(pf_bp)
-    pixel_flipping_all["Integrated Gradients"].append(pf_ig)
-    pixel_flipping_all["SmoothGrad"].append(pf_sg)
-    pixel_flipping_all["Occlusion Perturbation"].append(pf_occ)
-    pixel_flipping_all["Grad-CAM"].append(pf_gcam)
+    pixel_flipping_all["Backpropagation"].append(np.insert(pf_confidences, 0, base_conf))
+    pixel_flipping_all["Integrated Gradients"].append(np.insert(pf_ig_conf, 0, base_conf))
+    pixel_flipping_all["SmoothGrad"].append(np.insert(pf_sg_conf, 0, base_conf))
+    pixel_flipping_all["Occlusion Perturbation"].append(np.insert(pf_occ_conf, 0, base_conf))
+    pixel_flipping_all["Grad-CAM"].append(np.insert(pf_gcam_conf, 0, base_conf))
 
-# --------------------------- Region Perturbation ---------------------------
+    # --------------------------- Region Perturbation ---------------------------
 
-    rp_bp, _ = region_perturbation(model, image_tensor, saliency, target_class, grid_size=grid_size,visualize_every=steps)
-    rp_ig, _ = region_perturbation(model, image_tensor, ig_map, target_class, grid_size=grid_size,visualize_every=steps)
-    rp_sg, _ = region_perturbation(model, image_tensor, smooth_map, target_class, grid_size=grid_size,visualize_every=steps)
-    rp_occ, _ = region_perturbation(model, image_tensor, occ_map, target_class, grid_size=grid_size,visualize_every=steps)
-    rp_gcam, _ = region_perturbation(model, image_tensor, gcam_map, target_class, grid_size=grid_size,visualize_every=steps)
+    rp_confidences, base_conf = region_perturbation(model, image_tensor, saliency, target_class, grid_size=grid_size,visualize_every=steps)
+    rp_ig_conf, _ = region_perturbation(model, image_tensor, ig_map, target_class, grid_size=grid_size,visualize_every=steps)
+    rp_sg_conf, _ = region_perturbation(model, image_tensor, smooth_map, target_class, grid_size=grid_size,visualize_every=steps)
+    rp_occ_conf, _ = region_perturbation(model, image_tensor, occ_map, target_class, grid_size=grid_size,visualize_every=steps)
+    rp_gcam_conf, _ = region_perturbation(model, image_tensor, gcam_map, target_class, grid_size=grid_size,visualize_every=steps)
 
-    region_perturbation_all["Backpropagation"].append(rp_bp)
-    region_perturbation_all["Integrated Gradients"].append(rp_ig)
-    region_perturbation_all["SmoothGrad"].append(rp_sg)
-    region_perturbation_all["Occlusion Perturbation"].append(rp_occ)
-    region_perturbation_all["Grad-CAM"].append(rp_gcam)
+    region_perturbation_all["Backpropagation"].append(np.insert(rp_confidences, 0, base_conf))
+    region_perturbation_all["Integrated Gradients"].append(np.insert(rp_ig_conf, 0, base_conf))
+    region_perturbation_all["SmoothGrad"].append(np.insert(rp_sg_conf, 0, base_conf))
+    region_perturbation_all["Occlusion Perturbation"].append(np.insert(rp_occ_conf, 0, base_conf))
+    region_perturbation_all["Grad-CAM"].append(np.insert(rp_gcam_conf, 0, base_conf))
 
 # --------------------------- Score Métodos/Métricas ---------------------------
 
-x = np.linspace(10, 100, steps)
+x_auc = np.linspace(0, 100, steps + 1)
 
-auc_scores_pf = {}
-auc_scores_rp = {}
+auc_results_pf = {"Mean AUC": {}, "Std AUC": {}}
+auc_results_rp = {"Mean AUC": {}, "Std AUC": {}}
 methods = list(pixel_flipping_all.keys())
 
 # Score: Pixel Flipping
 for method in methods:
     data = np.array(pixel_flipping_all[method])
-    mean_confidence = data.mean(axis=0)
-    score_auc = np.trapezoid(mean_confidence, x)
-    auc_scores_pf[method] = score_auc
+    individual_aucs = [np.trapezoid(confidence_curve, x_auc) for confidence_curve in data]
+
+    mean_auc = np.mean(individual_aucs)
+    std_auc = np.std(individual_aucs)
+
+    auc_results_pf["Mean AUC"][method] = mean_auc
+    auc_results_pf["Std AUC"][method] = std_auc
 
 # Score: Region Perturbation
 for method in methods:
     data = np.array(region_perturbation_all[method])
-    mean_confidence = data.mean(axis=0)
-    score_auc = np.trapezoid(mean_confidence, x)
-    auc_scores_rp[method] = score_auc
+    individual_aucs = [np.trapezoid(confidence_curve, x_auc) for confidence_curve in data]
 
-df_scores = pd.DataFrame({
-    "Pixel Flipping (AUC)": auc_scores_pf,
-    "Region Perturbation (AUC)": auc_scores_rp
+    mean_auc = np.mean(individual_aucs)
+    std_auc = np.std(individual_aucs)
+
+    auc_results_rp["Mean AUC"][method] = mean_auc
+    auc_results_rp["Std AUC"][method] = std_auc
+
+formatted_scores_pf = {
+    method: f"{auc_results_pf['Mean AUC'][method]:.2f} ± {auc_results_pf['Std AUC'][method]:.2f}"
+    for method in methods
+}
+formatted_scores_rp = {
+    method: f"{auc_results_rp['Mean AUC'][method]:.2f} ± {auc_results_rp['Std AUC'][method]:.2f}"
+    for method in methods
+}
+
+df_base_pf = pd.DataFrame.from_dict(auc_results_pf["Mean AUC"], orient='index', columns=["Mean AUC"])
+df_base_rp = pd.DataFrame.from_dict(auc_results_rp["Mean AUC"], orient='index', columns=["Mean AUC"])
+
+df_scores_combined = pd.DataFrame({
+    "Pixel Flipping (AUC)": pd.Series(formatted_scores_pf),
+    "Region Perturbation (AUC)": pd.Series(formatted_scores_rp),
+    "PF_Mean": df_base_pf["Mean AUC"],
+    "RP_Mean": df_base_rp["Mean AUC"]
 })
 
-df_scores_sorted = df_scores.sort_values(by="Pixel Flipping (AUC)", ascending=True)
+df_scores_sorted = df_scores_combined.sort_values(by="PF_Mean", ascending=True).drop(columns=["PF_Mean", "RP_Mean"])
 
 try:
     print(df_scores_sorted.to_markdown(floatfmt=".2f"))
 except ImportError:
-    print("AVISO: 'tabulate' não instalada. Imprimindo formato padrão.")
+    print("Erro ao importar a biblioteca 'tabulate'")
     print(df_scores_sorted)
 
 # --------------------------- Gráficos ---------------------------
 
+x_plot = np.linspace(0, 100, steps + 1)
 colors = ["blue", "green", "orange", "red", "purple"]
 
-# Pixel Flipping
 plt.figure(figsize=(18, 6))
 for idx, method in enumerate(pixel_flipping_all.keys()):
     data = np.array(pixel_flipping_all[method])
-    mean = data.mean(axis=0)
+
+    mean_confidence = data.mean(axis=0)
     std = data.std(axis=0)
-    plot_line_with_shadow(x, mean, std, label=method, color=colors[idx])
+
+    plot_line_with_shadow(x_plot, mean_confidence, std, label=method, color=colors[idx])
+
 plt.xlabel("Progresso da Perturbação (%)", fontweight='bold')
 plt.ylabel("Confiança", fontweight='bold')
 plt.title("Pixel Flipping", fontweight='bold')
 plt.legend(prop={'weight': 'bold'})
 plt.xticks(np.arange(0, 101, 10), fontweight='bold')
 plt.yticks(fontweight='bold')
-plt.grid(True)
+plt.ylim(0, 1.05)
 plt.show()
 
-# Region Perturbation
 plt.figure(figsize=(18, 6))
 for idx, method in enumerate(region_perturbation_all.keys()):
     data = np.array(region_perturbation_all[method])
-    mean = data.mean(axis=0)
+
+    mean_confidence = data.mean(axis=0)
     std = data.std(axis=0)
-    plot_line_with_shadow(x, mean, std, label=method, color=colors[idx])
+
+    plot_line_with_shadow(x_plot, mean_confidence, std, label=method, color=colors[idx])
+
 plt.xlabel("Progresso da Perturbação (%)", fontweight='bold')
 plt.ylabel("Confiança", fontweight='bold')
 plt.title("Region Perturbation", fontweight='bold')
 plt.legend(prop={'weight': 'bold'})
 plt.xticks(np.arange(0, 101, 10), fontweight='bold')
 plt.yticks(fontweight='bold')
-plt.grid(True)
+plt.ylim(0, 1.05)
 plt.show()
