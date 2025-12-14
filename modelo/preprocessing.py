@@ -4,10 +4,12 @@ from shutil import copyfile
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
+# Configurações iniciais
 root_folder = '../PetImages'
 cat_folder = os.path.join(root_folder, "Cat")
 dog_folder = os.path.join(root_folder, "Dog")
 
+# Criar caminhos para treino, validação e teste
 base_dir = 'PetImages/cats_dogs'
 for subdir in ['training/cats', 'training/dogs', 'validation/cats', 'validation/dogs', 'test/cats', 'test/dogs']:
     os.makedirs(os.path.join(base_dir, subdir), exist_ok=True)
@@ -16,6 +18,7 @@ training_path = os.path.join(base_dir, 'training')
 validation_path = os.path.join(base_dir, 'validation')
 test_path = os.path.join(base_dir, 'test')
 
+# Função para dividir os dados
 def split_data(main_dir, training_dir, validation_dir, test_dir=None, include_test_split=True, split_size=0.9):
     files = [f for f in os.listdir(main_dir) if os.path.getsize(os.path.join(main_dir, f)) > 0]
     shuffled_files = random.sample(files, len(files))
@@ -41,18 +44,20 @@ def split_data(main_dir, training_dir, validation_dir, test_dir=None, include_te
 
     print(f"Divisão: {main_dir}")
 
+# Dividir os dados
 include_test = True
 split_data(cat_folder, os.path.join(training_path, 'cats'), os.path.join(validation_path, 'cats'),
            os.path.join(test_path, 'cats'), include_test)
 split_data(dog_folder, os.path.join(training_path, 'dogs'), os.path.join(validation_path, 'dogs'),
            os.path.join(test_path, 'dogs'), include_test)
 
-# Transformations
+# Configurar transformações
 transform = transforms.Compose([
     transforms.Resize((150, 150)),
     transforms.ToTensor()
 ])
 
+# Criar datasets e transformações
 train_dataset = datasets.ImageFolder(root=training_path, transform=transform)
 validation_dataset = datasets.ImageFolder(root=validation_path, transform=transform)
 test_dataset = datasets.ImageFolder(root=test_path, transform=transform) if include_test else None
@@ -61,4 +66,4 @@ train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 validation_loader = DataLoader(validation_dataset, batch_size=64, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False) if include_test else None
 
-print("Processamento Concluido!")
+print("Processamento Concluido")

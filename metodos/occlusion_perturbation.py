@@ -8,9 +8,7 @@ import matplotlib.pyplot as plt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
 # --------------------------- CNN ---------------------------
-
 
 class CNN(nn.Module):
     def __init__(self):
@@ -55,18 +53,14 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-
 # --------------------------- Modelo ---------------------------
-
 
 model_path = "../modelo/cnn_cats_dogs.pth"
 model = CNN().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-
 # --------------------------- Pré-Processamento ---------------------------
-
 
 def preprocess_image(image_path):
     transform = transforms.Compose([
@@ -77,11 +71,9 @@ def preprocess_image(image_path):
     tensor = transform(image).unsqueeze(0).to(device)
     return tensor, image
 
+# --------------------------- Occlusion Pertubacion ---------------------------
 
-# --------------------------- Occlusion Map ---------------------------
-
-
-def occlusion_map(model, image_tensor, patch_size=8, stride=4):
+def occlusion_pertubacion(model, image_tensor, patch_size=8, stride=4):
     _, _, H, W = image_tensor.shape
     model.eval()
     with torch.no_grad():
@@ -103,9 +95,7 @@ def occlusion_map(model, image_tensor, patch_size=8, stride=4):
     heatmap /= heatmap.max() + 1e-8
     return heatmap, target_class
 
-
 # --------------------------- Pixel Flipping ---------------------------
-
 
 def pixel_flipping(model, image_tensor, sal_map, target_class, steps=100, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
@@ -117,7 +107,7 @@ def pixel_flipping(model, image_tensor, sal_map, target_class, steps=100, visual
     total_pixels = len(sorted_idx)
     step_size = max(total_pixels // steps, 1)
 
-    print("\n=== Pixel Flipping ===")
+    print("\nPixel Flipping:")
     for step, i in enumerate(range(0, total_pixels, step_size), start=1):
         perturbed = image_np.copy().reshape(-1, 3)
         perturbed[sorted_idx[:i]] = 0
@@ -133,9 +123,7 @@ def pixel_flipping(model, image_tensor, sal_map, target_class, steps=100, visual
 
     return confidences, images_to_show
 
-
 # --------------------------- Region Pertubacion ---------------------------
-
 
 def region_perturbation(model, image_tensor, sal_map, target_class, grid_size=10, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
@@ -154,7 +142,7 @@ def region_perturbation(model, image_tensor, sal_map, target_class, grid_size=10
     images_to_show = []
     perturbed = image_np.copy()
 
-    print("\n=== Region Perturbation ===")
+    print("\nRegion Perturbation")
     for step, idx in enumerate(sorted_regions, start=1):
         i, j = divmod(idx, grid_size)
         perturbed[i*region_h:(i+1)*region_h, j*region_w:(j+1)*region_w, :] = 0
@@ -169,13 +157,11 @@ def region_perturbation(model, image_tensor, sal_map, target_class, grid_size=10
 
     return confidences, images_to_show
 
-
 # --------------------------- Teste Imagem ---------------------------
-
 
 image_path = "Imagens_teste/dogs/2373.jpg"
 image_tensor, image = preprocess_image(image_path)
-sal_map, target_class = occlusion_map(model, image_tensor)
+sal_map, target_class = occlusion_pertubacion(model, image_tensor)
 
 # Confiança inicial
 with torch.no_grad():
@@ -188,9 +174,7 @@ print(f"Confiança Inicial: {initial_conf:.4f}")
 pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, sal_map, target_class)
 region_conf, region_imgs = region_perturbation(model, image_tensor, sal_map, target_class)
 
-
 # --------------------------- Visualização Gráfica ---------------------------
-
 
 plt.figure(figsize=(15,4))
 plt.subplot(1,3,1)

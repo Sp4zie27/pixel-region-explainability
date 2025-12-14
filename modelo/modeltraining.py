@@ -8,16 +8,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+# Configuração do dispositivo
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
+print(f"Device: {device}")
 
 class_names = ['Cat', 'Dog']
 
+# Transformações de dados
 transform = transforms.Compose([
     transforms.Resize((150, 150)),
     transforms.ToTensor()
 ])
 
+# Carregamento dos dados
 train_dataset = datasets.ImageFolder(root='PetImages/cats-v-dogs/training', transform=transform)
 validation_dataset = datasets.ImageFolder(root='PetImages/cats-v-dogs/validation', transform=transform)
 test_dataset = datasets.ImageFolder(root='PetImages/cats-v-dogs/test', transform=transform)
@@ -26,6 +29,7 @@ train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 validation_loader = DataLoader(validation_dataset, batch_size=64, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
+# Definição do modelo CNN
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -52,6 +56,7 @@ class CNN(nn.Module):
         self.dropout = nn.Dropout(0.5)
         self.fc2 = nn.Linear(512, 2)
 
+    # Definição do método forward
     def forward(self, x):
         x = F.relu6(self.bn1(self.conv1(x)))
         x = F.relu6(self.bn2(self.conv2(x)))
@@ -71,13 +76,16 @@ class CNN(nn.Module):
 
 model = CNN().to(device)
 
+# Definição do critério de loss e optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
+# Treino do modelo
 num_epochs = 20
 train_loss_history, train_acc_history = [], []
 val_loss_history, val_acc_history = [], []
 
+# Loop de treino e validação
 for epoch in range(num_epochs):
     model.train()
     running_loss, correct, total = 0.0, 0, 0
@@ -97,7 +105,7 @@ for epoch in range(num_epochs):
     train_loss_history.append(epoch_loss)
     train_acc_history.append(epoch_acc)
 
-    # Validation
+    # Validação
     model.eval()
     val_loss, val_correct, val_total = 0.0, 0, 0
     with torch.no_grad():
@@ -116,6 +124,7 @@ for epoch in range(num_epochs):
 
     print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.2f}%, Val Loss: {val_loss:.4f}, Val Accuracy: {val_acc:.2f}%")
 
+# Teste do modelo
 model.eval()
 test_loss, test_correct, test_total = 0.0, 0, 0
 with torch.no_grad():
@@ -131,9 +140,11 @@ test_loss /= len(test_loader)
 test_acc = 100 * test_correct / test_total
 print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_acc:.2f}%")
 
+# Salvando o modelo
 torch.save(model.state_dict(), "cnn_cats_dogs.pth")
-print("Modelo completo salvo em 'cnn_cats_dogs.pth'")
+print("Modelo completo")
 
+# Plot dos resultados de treino e validação
 results = pd.DataFrame({
     'epoch': range(1, num_epochs + 1),
     'train_loss': train_loss_history,
@@ -142,6 +153,7 @@ results = pd.DataFrame({
     'val_acc': val_acc_history
 })
 
+# Curva do Loss
 plt.figure(figsize=(12,5))
 plt.subplot(1,2,1)
 plt.plot(results['epoch'], results['train_loss'], label='Train Loss')
@@ -151,6 +163,7 @@ plt.ylabel('Loss')
 plt.title('Training and Validation Loss')
 plt.legend()
 
+# Curva da Accuracy
 plt.subplot(1,2,2)
 plt.plot(results['epoch'], results['train_acc'], label='Train Accuracy')
 plt.plot(results['epoch'], results['val_acc'], label='Validation Accuracy')
@@ -161,6 +174,7 @@ plt.legend()
 plt.tight_layout()
 plt.show()
 
+# Função para plot das previsões
 def plot_prediction(data_loader, model, n_images, class_names):
     model.eval()
     images, labels = next(iter(data_loader))

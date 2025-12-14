@@ -1,11 +1,11 @@
-seaborn
-scipy
 torch
 torchvision
 numpy
 matplotlib
 pandas
 Pillow
+tqdm
+seaborn
+scipy
 opencv-python
 scikit-image
-

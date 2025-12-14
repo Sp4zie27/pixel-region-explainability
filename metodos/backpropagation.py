@@ -8,9 +8,7 @@ import matplotlib.pyplot as plt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
 # --------------------------- CNN ---------------------------
-
 
 class CNN(nn.Module):
     def __init__(self):
@@ -55,20 +53,14 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-
 # --------------------------- Modelo ---------------------------
 
-
 model_path = "../modelo/cnn_cats_dogs.pth"
-
-# Inicializa a arquitetura e carrega pesos
 model = CNN().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-
 # --------------------------- Pré-Processamento ---------------------------
-
 
 def preprocess_image(image_path):
     transform = transforms.Compose([
@@ -79,11 +71,9 @@ def preprocess_image(image_path):
     tensor = transform(image).unsqueeze(0).to(device)
     return tensor, image
 
-
 # --------------------------- Saliency Map ---------------------------
 
-
-def saliency_map(model, image_tensor, target_class=None):
+def backpropagation(model, image_tensor, target_class=None):
     image_tensor.requires_grad_()
     output = model(image_tensor)
     if target_class is None:
@@ -94,9 +84,7 @@ def saliency_map(model, image_tensor, target_class=None):
     saliency = saliency.max(axis=0)  # pega canal mais importante
     return saliency, target_class
 
-
 # --------------------------- Pixel Flipping ---------------------------
-
 
 def pixel_flipping(model, image_tensor, saliency, target_class, steps=100, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
@@ -108,7 +96,7 @@ def pixel_flipping(model, image_tensor, saliency, target_class, steps=100, visua
     total_pixels = len(sorted_idx)
     step_size = max(total_pixels // steps, 1)
 
-    print("\n=== Pixel Flipping ===")
+    print("\nPixel Flipping:")
     for step, i in enumerate(range(0, total_pixels, step_size), start=1):
         perturbed = image_np.copy().reshape(-1, 3)
         perturbed[sorted_idx[:i]] = 0
@@ -125,9 +113,7 @@ def pixel_flipping(model, image_tensor, saliency, target_class, steps=100, visua
 
     return confidences, images_to_show
 
-
 # --------------------------- Region Pertubacion ---------------------------
-
 
 def region_perturbation(model, image_tensor, saliency, target_class, grid_size=10, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
@@ -146,7 +132,7 @@ def region_perturbation(model, image_tensor, saliency, target_class, grid_size=1
     images_to_show = []
     perturbed = image_np.copy()
 
-    print("\n=== Region Perturbation ===")
+    print("\nRegion Perturbation:")
     for step, idx in enumerate(sorted_regions, start=1):
         i, j = divmod(idx, grid_size)
         perturbed[i*region_h:(i+1)*region_h, j*region_w:(j+1)*region_w, :] = 0
@@ -162,13 +148,11 @@ def region_perturbation(model, image_tensor, saliency, target_class, grid_size=1
 
     return confidences, images_to_show
 
-
 # --------------------------- Teste Imagem ---------------------------
 
-
-image_path = "Imagens_teste/dogs/2373.jpg"
+image_path = "Imagens_teste/Imagens_avaliar/130.jpg"
 image_tensor, image = preprocess_image(image_path)
-saliency, target_class = saliency_map(model, image_tensor)
+saliency, target_class = backpropagation(model, image_tensor)
 
 with torch.no_grad():
     probs = torch.softmax(model(image_tensor), dim=1).cpu().numpy()[0]
@@ -181,9 +165,7 @@ print(f"Confiança Inicial: {initial_conf:.4f}")
 pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, saliency, target_class, steps=100, visualize_every=10)
 region_conf, region_imgs = region_perturbation(model, image_tensor, saliency, target_class, grid_size=10, visualize_every=10)
 
-
 # --------------------------- Visualização Gráfica ---------------------------
-
 
 plt.figure(figsize=(18,6))
 plt.subplot(1,3,1)

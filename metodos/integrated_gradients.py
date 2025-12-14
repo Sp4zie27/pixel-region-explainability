@@ -8,9 +8,7 @@ import matplotlib.pyplot as plt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
 # --------------------------- CNN ---------------------------
-
 
 class CNN(nn.Module):
     def __init__(self):
@@ -55,18 +53,14 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-
 # --------------------------- Modelo ---------------------------
-
 
 model_path = "../modelo/cnn_cats_dogs.pth"
 model = CNN().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-
 # --------------------------- Pré-Processamento ---------------------------
-
 
 def preprocess_image(image_path):
     transform = transforms.Compose([
@@ -77,9 +71,7 @@ def preprocess_image(image_path):
     tensor = transform(image).unsqueeze(0).to(device)
     return tensor, image
 
-
 # --------------------------- Integrated Gradients ---------------------------
-
 
 def integrated_gradients(model, image_tensor, target_class=None, baseline=None, steps=50):
     model.zero_grad()
@@ -108,9 +100,7 @@ def integrated_gradients(model, image_tensor, target_class=None, baseline=None, 
     ig_map = np.maximum(ig_map, 0)
     return ig_map, target_class
 
-
 # --------------------------- Pixel Flipping ---------------------------
-
 
 def pixel_flipping(model, image_tensor, importance_map, target_class, steps=100, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
@@ -122,7 +112,7 @@ def pixel_flipping(model, image_tensor, importance_map, target_class, steps=100,
     total_pixels = len(sorted_idx)
     step_size = max(total_pixels // steps, 1)
 
-    print("\n=== Pixel Flipping ===")
+    print("\nPixel Flipping:")
     for step, i in enumerate(range(0, total_pixels, step_size), start=1):
         perturbed = image_np.copy().reshape(-1, 3)
         perturbed[sorted_idx[:i]] = 0
@@ -138,9 +128,7 @@ def pixel_flipping(model, image_tensor, importance_map, target_class, steps=100,
 
     return confidences, images_to_show
 
-
 # --------------------------- Region Pertubacion ---------------------------
-
 
 def region_perturbation(model, image_tensor, importance_map, target_class, grid_size=10, visualize_every=10):
     image_np = image_tensor.squeeze().permute(1, 2, 0).detach().cpu().numpy()
@@ -159,7 +147,7 @@ def region_perturbation(model, image_tensor, importance_map, target_class, grid_
     images_to_show = []
     perturbed = image_np.copy()
 
-    print("\n=== Region Perturbation ===")
+    print("\nRegion Perturbation:")
     for step, idx in enumerate(sorted_regions, start=1):
         i, j = divmod(idx, grid_size)
         perturbed[i*region_h:(i+1)*region_h, j*region_w:(j+1)*region_w, :] = 0
@@ -173,7 +161,6 @@ def region_perturbation(model, image_tensor, importance_map, target_class, grid_
             images_to_show.append((perturbed.copy(), conf, step))
 
     return confidences, images_to_show
-
 
 # --------------------------- Teste Imagem ---------------------------
 
@@ -190,10 +177,8 @@ class_name = "Cão" if target_class == 1 else "Gato"
 print(f"\nImagem Prevista: {class_name}")
 print(f"Confiança Inicial: {initial_conf:.4f}")
 
-# Métricas
 pixel_conf, pixel_imgs = pixel_flipping(model, image_tensor, ig_map, target_class)
 region_conf, region_imgs = region_perturbation(model, image_tensor, ig_map, target_class)
-
 
 # --------------------------- Visualização Gráfica ---------------------------
 

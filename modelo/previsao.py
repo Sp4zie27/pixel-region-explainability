@@ -7,10 +7,7 @@ import matplotlib.pyplot as plt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-# --------------------------- CNN ---------------------------
-
-
+# CNN
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -54,18 +51,13 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-
-# --------------------------- Modelo ---------------------------
-
-
+# Carregar o modelo treinado
 model_path = "cnn_cats_dogs.pth"
 model = CNN().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-
-# --------------------------- Pré-Processamento ---------------------------
-
+# Função para pré-processar a imagem
 def preprocess_image(image_path):
     transform = transforms.Compose([
         transforms.Resize((150, 150)),
@@ -75,10 +67,7 @@ def preprocess_image(image_path):
     tensor = transform(image).unsqueeze(0).to(device)
     return tensor, image
 
-
-# --------------------------- Previsão---------------------------
-
-
+# Carregar e pré-processar a imagem de teste
 image_path = "../metodos/Imagens_teste/cats/1278.jpg"
 image_tensor, image = preprocess_image(image_path)
 
@@ -88,18 +77,12 @@ with torch.no_grad():
     class_idx = probs.argmax().item()
     confidence = probs[class_idx].item()
 
-
-# --------------------------- Resultado ---------------------------
-
-
+# Exibir o resultado
 class_name = "Cão" if class_idx == 1 else "Gato"
 print(f"Classe prevista: {class_name}")
 print(f"Confiança: {confidence:.4f}")
 
-
-# --------------------------- Mostrar imagem ---------------------------
-
-
+# Visualizar a imagem com a previsão
 plt.figure(figsize=(4, 4))
 plt.imshow(image)
 plt.axis('off')
